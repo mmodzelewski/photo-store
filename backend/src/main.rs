@@ -1,9 +1,11 @@
+mod config;
+
 use std::path::Path;
 
 use aws_sdk_s3::primitives::ByteStream;
 use axum::{routing::get, Router};
 
-const URL: &str = "";
+use crate::config::Config;
 
 #[tokio::main]
 async fn main() {
@@ -14,10 +16,17 @@ async fn main() {
         .unwrap();
 }
 
-async fn get_data<'a>() -> &'a str {
+async fn get_data() -> &'static str {
+    let local_config = Config::load().await;
+    if local_config.is_err() {
+        println!("{:?}", local_config);
+        return "error";
+    }
+    let local_config = local_config.unwrap();
+
     let config = aws_config::from_env()
         .region("auto")
-        .endpoint_url(URL)
+        .endpoint_url(local_config.r2_url)
         .load()
         .await;
     let client = aws_sdk_s3::Client::new(&config);
@@ -27,7 +36,7 @@ async fn get_data<'a>() -> &'a str {
     let body = ByteStream::from_path(Path::new("")).await;
     let result = client
         .put_object()
-        .bucket("photo-store-test")
+        .bucket(local_config.bucket_name)
         .key("test-image")
         .content_type("image/jpeg")
         .body(body.unwrap())

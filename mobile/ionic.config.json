@@ -1,0 +1,7 @@
+{
+  "name": "Photos store",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "react-vite"
+}

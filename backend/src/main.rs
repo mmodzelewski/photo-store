@@ -1,4 +1,5 @@
 mod config;
+mod auth;
 
 use std::path::Path;
 
@@ -9,7 +10,12 @@ use crate::config::Config;
 
 #[tokio::main]
 async fn main() {
-    let app = Router::new().route("/", get(get_data));
+    let _ = auth::github::setup_github().await;
+    let app = Router::new()
+        .route("/", get(get_data))
+        .route("/redirect", get(auth::github::redirect))
+        .route("/user", get(auth::github::get_user_data))
+        ;
     axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
         .serve(app.into_make_service())
         .await

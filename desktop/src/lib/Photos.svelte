@@ -1,6 +1,6 @@
 <script lang="ts">
     import { readDir, BaseDirectory } from "@tauri-apps/api/fs";
-    import { convertFileSrc } from "@tauri-apps/api/tauri";
+    import { convertFileSrc, invoke } from "@tauri-apps/api/tauri";
     import { onMount } from "svelte";
 
     let urls: string[] = [];
@@ -14,6 +14,7 @@
 </script>
 
 <div>
+    <button on:click={() => invoke('send_image')}>Send a picture</button>
     {#each urls as url}
         <img src={url} height="500" alt=""/>
     {/each}

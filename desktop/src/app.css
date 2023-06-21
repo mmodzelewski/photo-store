@@ -1,0 +1,42 @@
+/* Write your global styles here, in PostCSS syntax */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+    background: #333;
+}
+
+h1 {
+  @apply text-4xl py-8;
+}
+
+h2 {
+  @apply text-3xl py-4;
+}
+
+h3 {
+  @apply text-2xl py-2;
+}
+
+h4 {
+  @apply text-xl py-2;
+}
+
+h5,
+h6 {
+  @apply text-lg py-2;
+}
+
+p {
+  @apply py-2;
+}
+
+ul {
+  @apply list-disc pl-4;
+}
+
+ol {
+  @apply list-decimal pl-4;
+}
+

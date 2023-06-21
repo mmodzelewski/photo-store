@@ -9,10 +9,10 @@
     }
 </script>
 
-<main class="container">
+<main>
     <h1>Photo store</h1>
 
-    <div class="row">
+    <div>
         <button on:click={selectDir}>Select directory</button>
     </div>
 </main>

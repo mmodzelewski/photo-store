@@ -14,8 +14,8 @@
 </script>
 
 <div>
-    <button on:click={() => invoke('send_image')}>Send a picture</button>
+    <button on:click={() => invoke("send_image")}>Send a picture</button>
     {#each urls as url}
-        <img src={url} height="500" alt=""/>
+        <img src={url} height="500" alt="" />
     {/each}
 </div>

@@ -1,5 +1,6 @@
-<button on:click
-    class="border-solid border-2 border-zinc-500 p-4 rounded-lg bg-zinc-700"
+<button
+    on:click
+    class="rounded-lg border-2 border-solid border-zinc-500 bg-zinc-700 p-4"
 >
     <slot />
 </button>

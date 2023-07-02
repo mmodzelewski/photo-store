@@ -20,6 +20,8 @@ reqwest = { version = "0.11.18", features = ["multipart"] }
 rusqlite = { version = "0.29.0", features = ["bundled"] }
 rusqlite_migration = "1.0.2"
 thiserror = "1.0.40"
+log = "0.4.19"
+env_logger = "0.10.0"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem

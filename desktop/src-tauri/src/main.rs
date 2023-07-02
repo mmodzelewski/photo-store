@@ -6,6 +6,7 @@ mod error;
 
 use database::Database;
 use error::{Error, Result};
+use log::debug;
 use reqwest::multipart::Part;
 use std::fs;
 use tauri::Manager;
@@ -35,6 +36,7 @@ async fn send_image() {
 
 #[tauri::command]
 fn save_images_dirs(dirs: Vec<&str>, database: tauri::State<Database>) -> Result<()> {
+    debug!("Saving selected directories {:?}", dirs);
     return database.save_directories(dirs);
 }
 
@@ -42,6 +44,10 @@ fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![send_image, save_images_dirs])
         .setup(|app| {
+            env_logger::Builder::new()
+                .filter_level(log::LevelFilter::Trace)
+                .init();
+
             let path = app.path_resolver().app_data_dir().ok_or(Error::Runtime(
                 "Could not get app data directory".to_owned(),
             ))?;

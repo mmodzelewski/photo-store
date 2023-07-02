@@ -12,4 +12,3 @@ function createNavigation() {
 }
 
 export const navigation = createNavigation();
-

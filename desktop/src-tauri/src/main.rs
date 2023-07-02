@@ -1,11 +1,16 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::fs;
+use std::{fs, sync::Mutex};
 
 use reqwest::multipart::Part;
 use rusqlite::Connection;
-use tauri::App;
+use rusqlite_migration::{Migrations, M};
+use tauri::{App, Manager};
+
+struct Database {
+    connection: Mutex<Connection>,
+}
 
 #[tauri::command]
 async fn send_image() {
@@ -30,9 +35,25 @@ async fn send_image() {
     println!("{:?}", res);
 }
 
+#[tauri::command]
+fn save_images_dirs(dirs: Vec<&str>, database: tauri::State<Database>) {
+    let mut conn = database.connection.lock().unwrap();
+
+    let tx = conn.transaction().unwrap();
+    {
+        let mut stmt = tx
+            .prepare("INSERT INTO directory (path) VALUES (?1)")
+            .unwrap();
+        dirs.iter().for_each(|dir| {
+            stmt.execute([dir]).unwrap();
+        });
+    }
+    tx.commit().unwrap();
+}
+
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![send_image])
+        .invoke_handler(tauri::generate_handler![send_image, save_images_dirs])
         .setup(|app| {
             init_db(&app);
             return Ok(());
@@ -44,13 +65,17 @@ fn main() {
 fn init_db(app: &App) {
     let path = app.path_resolver().app_data_dir().unwrap();
 
-    let conn = Connection::open(path.join("data.db3")).unwrap();
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS image (
+    let migrations = Migrations::new(vec![M::up(
+        "CREATE TABLE directory (
             id INTEGER PRIMARY KEY,
-            path TEXT NOT NULL
-        )",
-        (),
-    )
-    .unwrap();
+            path TEXT NOT NULL UNIQUE ON CONFLICT IGNORE
+        );",
+    )]);
+    let mut conn = Connection::open(path.join("data.db3")).unwrap();
+    // conn.pragma_update(None, "journal_mode", &"WAL").unwrap(); // verify
+    migrations.to_latest(&mut conn).unwrap();
+
+    app.manage(Database {
+        connection: Mutex::new(conn),
+    });
 }

@@ -1,7 +1,10 @@
 use log::debug;
 use rusqlite::Connection;
 use rusqlite_migration::{Migrations, M};
-use std::{path::PathBuf, sync::Mutex};
+use std::{
+    path::PathBuf,
+    sync::{Mutex, MutexGuard},
+};
 
 use crate::error::{Error, Result};
 
@@ -28,10 +31,7 @@ impl Database {
     }
 
     pub fn save_directories(self: &Self, dirs: Vec<&str>) -> Result<()> {
-        let mut conn = self
-            .connection
-            .lock()
-            .map_err(|err| Error::Generic(err.to_string()))?;
+        let mut conn = self.get_connection()?;
 
         let tx = conn.transaction()?;
         {
@@ -42,5 +42,22 @@ impl Database {
         }
         tx.commit()?;
         return Ok(());
+    }
+
+    pub fn has_images_dirs(self: &Self) -> Result<bool> {
+        let conn = self.get_connection()?;
+
+        let dirs_count = conn.query_row("SELECT COUNT(1) FROM directory", (), |row| {
+            row.get::<usize, usize>(0)
+        })?;
+
+        return Ok(dirs_count > 0);
+    }
+
+    fn get_connection(self: &Self) -> Result<MutexGuard<'_, Connection>> {
+        return self
+            .connection
+            .lock()
+            .map_err(|err| Error::Generic(err.to_string()));
     }
 }

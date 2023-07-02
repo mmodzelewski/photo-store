@@ -1,9 +1,11 @@
 import { writable } from "svelte/store";
 import IntroPage from "./pages/IntroPage.svelte";
 import GalleryPage from "./pages/GalleryPage.svelte";
+import { invoke } from "@tauri-apps/api";
 
-function createNavigation() {
-    const { subscribe, set } = writable(IntroPage);
+async function createNavigation() {
+    const hasDirs = invoke("has_images_dirs")
+    const { subscribe, set } = writable(hasDirs ? GalleryPage : IntroPage);
 
     return {
         subscribe,

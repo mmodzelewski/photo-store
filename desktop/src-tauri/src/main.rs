@@ -40,9 +40,19 @@ fn save_images_dirs(dirs: Vec<&str>, database: tauri::State<Database>) -> Result
     return database.save_directories(dirs);
 }
 
+#[tauri::command]
+fn has_images_dirs(database: tauri::State<Database>) -> Result<bool> {
+    debug!("Checking images dirs");
+    return database.has_images_dirs();
+}
+
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![send_image, save_images_dirs])
+        .invoke_handler(tauri::generate_handler![
+            send_image,
+            save_images_dirs,
+            has_images_dirs
+        ])
         .setup(|app| {
             env_logger::Builder::new()
                 .filter_level(log::LevelFilter::Trace)

@@ -15,12 +15,20 @@ pub struct Database {
 impl Database {
     pub fn init(path: PathBuf) -> Result<Database> {
         debug!("Databae initialization");
-        let migrations = Migrations::new(vec![M::up(
-            "CREATE TABLE directory (
-            id INTEGER PRIMARY KEY,
-            path TEXT NOT NULL UNIQUE ON CONFLICT IGNORE
-        );",
-        )]);
+        let migrations = Migrations::new(vec![
+            M::up(
+                "CREATE TABLE directory (
+                    id INTEGER PRIMARY KEY,
+                    path TEXT NOT NULL UNIQUE ON CONFLICT IGNORE
+                );",
+            ),
+            M::up(
+                "CREATE TABLE file (
+                    id INTEGER PRIMARY KEY,
+                    path TEXT NOT NULL UNIQUE
+                );",
+            ),
+        ]);
         let mut conn = Connection::open(path.join("data.db3"))?;
         debug!("Database connection opened");
         // conn.pragma_update(None, "journal_mode", &"WAL").unwrap(); // verify
@@ -52,6 +60,39 @@ impl Database {
         })?;
 
         return Ok(dirs_count > 0);
+    }
+
+    pub fn get_directories(self: &Self) -> Result<Vec<String>> {
+        let conn = self.get_connection()?;
+
+        let mut statement = conn.prepare("SELECT path FROM directory")?;
+
+        let rows = statement.query_map([], |row| row.get(0))?;
+
+        let mut dirs = Vec::new();
+        for row in rows {
+            dirs.push(row?);
+        }
+        return Ok(dirs);
+    }
+
+    pub fn index_file(self: &Self, path: &str) -> Result<()> {
+        debug!("Saving file to index: {}", path);
+        let conn = self.get_connection()?;
+        conn.execute("INSERT INTO file (path) VALUES (?1)", [path])?;
+        return Ok(());
+    }
+
+    pub fn get_indexed_images(self: &Self) -> Result<Vec<String>> {
+        let conn = self.get_connection()?;
+        let mut statement = conn.prepare("SELECT path FROM file")?;
+        let rows = statement.query_map([], |row| row.get(0))?;
+        let mut paths = Vec::new();
+        for row in rows {
+            paths.push(row?);
+        }
+        debug!("Got {} files from index", paths.len());
+        return Ok(paths);
     }
 
     fn get_connection(self: &Self) -> Result<MutexGuard<'_, Connection>> {

@@ -2,6 +2,7 @@
     import { open } from "@tauri-apps/api/dialog";
     import Button from "../components/Button.svelte";
     import { invoke } from "@tauri-apps/api/tauri";
+    import { navigation } from "../navigation";
 
     async function selectDir() {
         const dirs = await open({
@@ -10,7 +11,8 @@
             multiple: true,
         });
         if (dirs) {
-            invoke("save_images_dirs", { dirs });
+            await invoke("save_images_dirs", { dirs });
+            navigation.goToGallery();
         }
     }
 </script>

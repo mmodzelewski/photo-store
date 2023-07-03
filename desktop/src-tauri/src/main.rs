@@ -10,6 +10,7 @@ use log::debug;
 use reqwest::multipart::Part;
 use std::fs;
 use tauri::Manager;
+use walkdir::WalkDir;
 
 #[tauri::command]
 async fn send_image() {
@@ -37,7 +38,20 @@ async fn send_image() {
 #[tauri::command]
 fn save_images_dirs(dirs: Vec<&str>, database: tauri::State<Database>) -> Result<()> {
     debug!("Saving selected directories {:?}", dirs);
-    return database.save_directories(dirs);
+    database.save_directories(&dirs)?;
+
+    if !dirs.is_empty() {
+        for entry in WalkDir::new(dirs.get(0).unwrap())
+            .into_iter()
+            .filter_map(|entry| entry.ok())
+        {
+            if entry.file_type().is_file() {
+                debug!("{}", entry.path().display());
+            }
+        }
+    }
+
+    return Ok(());
 }
 
 #[tauri::command]

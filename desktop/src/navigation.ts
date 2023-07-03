@@ -4,7 +4,7 @@ import GalleryPage from "./pages/GalleryPage.svelte";
 import { invoke } from "@tauri-apps/api";
 
 async function createNavigation() {
-    const hasDirs = invoke("has_images_dirs")
+    const hasDirs = await invoke("has_images_dirs")
     const { subscribe, set } = writable(hasDirs ? GalleryPage : IntroPage);
 
     return {
@@ -13,4 +13,4 @@ async function createNavigation() {
     };
 }
 
-export const navigation = createNavigation();
+export const navigation = await createNavigation();

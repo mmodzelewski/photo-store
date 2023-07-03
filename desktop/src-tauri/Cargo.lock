@@ -2093,6 +2093,7 @@ dependencies = [
  "tauri",
  "tauri-build",
  "thiserror",
+ "walkdir",
 ]
 
 [[package]]

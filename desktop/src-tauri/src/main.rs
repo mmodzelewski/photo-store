@@ -10,7 +10,8 @@ use log::debug;
 use reqwest::multipart::Part;
 use std::fs;
 use tauri::Manager;
-use walkdir::WalkDir;
+use uuid::Uuid;
+use walkdir::{DirEntry, WalkDir};
 
 #[tauri::command]
 async fn send_image() {
@@ -40,26 +41,55 @@ fn save_images_dirs(dirs: Vec<&str>, database: tauri::State<Database>) -> Result
     debug!("Saving selected directories {:?}", dirs);
     database.save_directories(&dirs)?;
 
-    for dir in dirs.iter() {
-        index_dir(dir, &database)?;
-    }
+    let files = dirs
+        .into_iter()
+        .map(get_files_from_dir)
+        .collect::<Result<Vec<_>>>()?
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
+
+    let current_time = std::time::SystemTime::now();
+    index_files(&files, &database)?;
+    debug!("Indexing took {:?}", current_time.elapsed().unwrap());
 
     return Ok(());
 }
 
-fn index_dir(dir: &str, database: &tauri::State<Database>) -> Result<()> {
-    for entry in WalkDir::new(dir).into_iter() {
-        let entry = entry?;
-        if entry.file_type().is_file() {
-            debug!("{}", entry.path().display());
-            let path = entry
-                .path()
-                .to_str()
-                .ok_or(Error::Generic("Could not get string from path".to_owned()))?;
-            database.index_file(path)?;
-        }
+fn index_files(files: &Vec<DirEntry>, database: &tauri::State<Database>) -> Result<()> {
+    let mut descriptors = vec![];
+    for file in files {
+        let path = file
+            .path()
+            .to_str()
+            .ok_or(Error::Generic("Could not get string from path".to_owned()))?
+            .to_owned();
+        descriptors.push(FileDesc {
+            path,
+            uuid: Uuid::new_v4(),
+        });
     }
+
+    database.index_files(descriptors)?;
+
     return Ok(());
+}
+
+pub struct FileDesc {
+    path: String,
+    uuid: Uuid,
+}
+
+fn get_files_from_dir(dir: &str) -> Result<Vec<DirEntry>> {
+    return WalkDir::new(dir)
+        .into_iter()
+        .map(|res| res.map_err(|err| Error::Walkdir(err)))
+        .collect::<Result<Vec<_>>>()
+        .map(|vec| {
+            vec.into_iter()
+                .filter(|entry| entry.file_type().is_file())
+                .collect::<Vec<_>>()
+        });
 }
 
 #[tauri::command]

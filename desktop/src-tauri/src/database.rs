@@ -6,7 +6,10 @@ use std::{
     sync::{Mutex, MutexGuard},
 };
 
-use crate::error::{Error, Result};
+use crate::{
+    error::{Error, Result},
+    FileDesc,
+};
 
 pub struct Database {
     connection: Mutex<Connection>,
@@ -25,7 +28,8 @@ impl Database {
             M::up(
                 "CREATE TABLE file (
                     id INTEGER PRIMARY KEY,
-                    path TEXT NOT NULL UNIQUE
+                    path TEXT NOT NULL UNIQUE,
+                    uuid BLOB NOT NULL UNIQUE
                 );",
             ),
         ]);
@@ -76,10 +80,18 @@ impl Database {
         return Ok(dirs);
     }
 
-    pub fn index_file(self: &Self, path: &str) -> Result<()> {
-        debug!("Saving file to index: {}", path);
-        let conn = self.get_connection()?;
-        conn.execute("INSERT INTO file (path) VALUES (?1)", [path])?;
+    pub fn index_files(self: &Self, paths: Vec<FileDesc>) -> Result<()> {
+        let mut conn = self.get_connection()?;
+        let tx = conn.transaction()?;
+
+        {
+            let mut stmt = tx.prepare("INSERT INTO file (path, uuid) VALUES (?1, ?2)")?;
+            for path in paths {
+                stmt.execute((path.path, path.uuid))?;
+            }
+        }
+
+        tx.commit()?;
         return Ok(());
     }
 

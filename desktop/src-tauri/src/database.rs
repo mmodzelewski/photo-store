@@ -80,14 +80,14 @@ impl Database {
         return Ok(dirs);
     }
 
-    pub fn index_files(self: &Self, paths: Vec<FileDesc>) -> Result<()> {
+    pub fn index_files(self: &Self, paths: &Vec<FileDesc>) -> Result<()> {
         let mut conn = self.get_connection()?;
         let tx = conn.transaction()?;
 
         {
             let mut stmt = tx.prepare("INSERT INTO file (path, uuid) VALUES (?1, ?2)")?;
             for path in paths {
-                stmt.execute((path.path, path.uuid))?;
+                stmt.execute((&path.path, &path.uuid))?;
             }
         }
 
@@ -95,16 +95,21 @@ impl Database {
         return Ok(());
     }
 
-    pub fn get_indexed_images(self: &Self) -> Result<Vec<String>> {
+    pub fn get_indexed_images(self: &Self) -> Result<Vec<FileDesc>> {
         let conn = self.get_connection()?;
-        let mut statement = conn.prepare("SELECT path FROM file")?;
-        let rows = statement.query_map([], |row| row.get(0))?;
-        let mut paths = Vec::new();
+        let mut statement = conn.prepare("SELECT path, uuid FROM file")?;
+        let rows = statement.query_map([], |row| {
+            Ok(FileDesc {
+                path: row.get(0)?,
+                uuid: row.get(1)?,
+            })
+        })?;
+        let mut descriptors = Vec::new();
         for row in rows {
-            paths.push(row?);
+            descriptors.push(row?);
         }
-        debug!("Got {} files from index", paths.len());
-        return Ok(paths);
+        debug!("Got {} files from index", descriptors.len());
+        return Ok(descriptors);
     }
 
     fn get_connection(self: &Self) -> Result<MutexGuard<'_, Connection>> {

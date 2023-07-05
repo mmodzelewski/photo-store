@@ -20,15 +20,8 @@
         "all": false,
         "open": true
       },
-      "fs": {
-        "all": false,
-        "readFile": true,
-        "readDir": true,
-        "exists": true,
-        "scope": ["$PICTURE/**/*"]
-      },
       "protocol": {
-          "assetScope": ["$PICTURE/**/*"],
+          "assetScope": ["$APPDATA/**/*"],
           "asset": true
       }
     },

@@ -83,6 +83,7 @@ fn generate_thumbnails(files: &Vec<FileDesc>, app_handle: &AppHandle) -> Result<
     fs::create_dir_all(&thumbnails_dir).unwrap();
 
     for file in files {
+        debug!("Generating thumbnail for {}", &file.path);
         generate_thumbnail(&file, &thumbnails_dir);
     }
 
@@ -157,6 +158,7 @@ fn get_files_from_dir(dir: &str) -> Result<Vec<DirEntry>> {
         .map(|vec| {
             vec.into_iter()
                 .filter(|entry| entry.file_type().is_file())
+                .filter(|entry| entry.file_name().to_str().unwrap().ends_with(".jpg"))
                 .collect::<Vec<_>>()
         });
 }
@@ -168,6 +170,36 @@ fn get_indexed_images(
 ) -> Result<Vec<String>> {
     debug!("Getting indexed files");
     let descriptors = database.get_indexed_images()?;
+
+    let thumbnails_dir = app_handle
+        .path_resolver()
+        .app_data_dir()
+        .ok_or(error::Error::Generic(
+            "Cannot get app data directory".to_owned(),
+        ))?;
+    let thumbnails_dir = thumbnails_dir.join("thumbnails");
+
+    let paths = descriptors
+        .iter()
+        .filter_map(|desc| {
+            thumbnails_dir
+                .join(&desc.uuid.to_string())
+                .to_str()
+                .map(|str| str.to_owned())
+        })
+        .collect();
+
+    return Ok(paths);
+}
+
+#[tauri::command]
+fn get_indexed_images_paged(
+    page: usize,
+    app_handle: AppHandle,
+    database: tauri::State<Database>,
+) -> Result<Vec<String>> {
+    debug!("Getting indexed files");
+    let descriptors = database.get_indexed_images_paged(page)?;
 
     let thumbnails_dir = app_handle
         .path_resolver()
@@ -203,6 +235,7 @@ fn main() {
             save_images_dirs,
             has_images_dirs,
             get_indexed_images,
+            get_indexed_images_paged,
         ])
         .setup(|app| {
             env_logger::Builder::new()

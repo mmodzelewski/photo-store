@@ -1,5 +1,6 @@
 <script lang="ts">
     import { convertFileSrc, invoke } from "@tauri-apps/api/tauri";
+    import InfiniteScroll from "../components/InfiniteScroll.svelte";
     import { onMount } from "svelte";
     let images: { path: string; asset: string }[] = [];
     let page = 0;
@@ -28,4 +29,11 @@
             <img src={image.asset} loading={index > 5 ? "lazy" : "eager"} />
         </div>
     {/each}
+    <InfiniteScroll
+        hasMore={newImages.length > 0}
+        on:loadMore={() => {
+            page++;
+            getImages();
+        }}
+    />
 </div>

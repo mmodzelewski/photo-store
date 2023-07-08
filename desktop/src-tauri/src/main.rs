@@ -47,10 +47,10 @@ async fn send_image() {
 }
 
 #[tauri::command]
-fn save_images_dirs(
+async fn save_images_dirs(
     dirs: Vec<&str>,
     app_handle: AppHandle,
-    database: tauri::State<Database>,
+    database: tauri::State<'_, Database>,
 ) -> Result<()> {
     debug!("Saving selected directories {:?}", dirs);
     database.save_directories(&dirs)?;

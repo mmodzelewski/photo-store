@@ -19,10 +19,6 @@
       "dialog": {
         "open": true
       },
-      "shell": {
-        "all": false,
-        "open": true
-      },
       "protocol": {
           "assetScope": ["$APPDATA/**/*"],
           "asset": true

@@ -13,9 +13,10 @@ across multiple platforms.
 - [x] Pagination for images loading
 - [ ] Cargo workspace for sharing code between apps?
 - [ ] API design
-- [ ] Add [Persisted Scope plugin](https://github.com/tauri-apps/plugins-workspace/tree/v1/plugins/persisted-scope) 
-once the [PR](https://github.com/tauri-apps/plugins-workspace/pull/32) is merged
-- [ ] Change command for getting images to async
+- [ ] ~~Add [Persisted Scope plugin](https://github.com/tauri-apps/plugins-workspace/tree/v1/plugins/persisted-scope) 
+once the [PR](https://github.com/tauri-apps/plugins-workspace/pull/32) is merged~~ - 
+no longer needed, it's covered by saving and restoring settings from db
+- [x] Change command for indexing images to async
 - [ ] Add exif data to images index
 - [ ] Display images in chronological order
 - [ ] Change process for generating thumbnails - maybe on demand?

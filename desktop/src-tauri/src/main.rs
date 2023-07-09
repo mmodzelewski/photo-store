@@ -46,6 +46,17 @@ async fn send_image() {
     println!("{:?}", res);
 }
 
+#[derive(Clone, serde::Serialize)]
+struct FilesIndexed {
+    total: usize,
+}
+
+#[derive(Clone, serde::Serialize)]
+struct ThumbnailsGenerated {
+    done: usize,
+    total: usize,
+}
+
 #[tauri::command]
 async fn save_images_dirs(
     dirs: Vec<&str>,
@@ -66,6 +77,12 @@ async fn save_images_dirs(
     let current_time = std::time::SystemTime::now();
     let descriptors = index_files(&files, &database)?;
     debug!("Indexing took {:?}", current_time.elapsed().unwrap());
+    app_handle.emit_all(
+        "files-indexed",
+        FilesIndexed {
+            total: descriptors.len(),
+        },
+    )?;
 
     generate_thumbnails(&descriptors, &app_handle)?;
 
@@ -82,9 +99,18 @@ fn generate_thumbnails(files: &Vec<FileDesc>, app_handle: &AppHandle) -> Result<
     let thumbnails_dir = thumbnails_dir.join("thumbnails");
     fs::create_dir_all(&thumbnails_dir).unwrap();
 
+    let mut done: usize = 0;
     for file in files {
         debug!("Generating thumbnail for {}", &file.path);
         generate_thumbnail(&file, &thumbnails_dir);
+        done += 1;
+        app_handle.emit_all(
+            "thumbnails-generated",
+            ThumbnailsGenerated {
+                done,
+                total: files.len(),
+            },
+        )?;
     }
 
     return Ok(());

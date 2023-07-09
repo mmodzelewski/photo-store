@@ -3,7 +3,26 @@
     import Button from "../components/Button.svelte";
     import { invoke } from "@tauri-apps/api/tauri";
     import { pictureDir } from "@tauri-apps/api/path";
+    import { listen } from "@tauri-apps/api/event";
     import { navigation } from "../navigation";
+    import { onDestroy, onMount } from "svelte";
+
+    const unlistenFunctions = [];
+    onMount(async () => {
+        const unlisten1 = await listen("thumbnails-generated", (event) => {
+            console.log(event.payload);
+        });
+        unlistenFunctions.push(unlisten1);
+
+        const unlisten2 = await listen("files-indexed", (event) => {
+            console.log(event.payload);
+        });
+        unlistenFunctions.push(unlisten2);
+    });
+
+    onDestroy(() => {
+        unlistenFunctions.forEach((unlisten) => unlisten());
+    });
 
     async function selectDir() {
         const picsDir = await pictureDir();

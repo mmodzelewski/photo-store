@@ -102,6 +102,7 @@ impl Database {
             Ok(FileDesc {
                 path: row.get(0)?,
                 uuid: row.get(1)?,
+                date: String::default(),
             })
         })?;
         let mut descriptors = Vec::new();
@@ -122,6 +123,7 @@ impl Database {
             Ok(FileDesc {
                 path: row.get(0)?,
                 uuid: row.get(1)?,
+                date: String::default(),
             })
         })?;
         let mut descriptors = Vec::new();

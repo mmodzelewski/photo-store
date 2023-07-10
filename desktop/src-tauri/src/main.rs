@@ -160,9 +160,13 @@ fn index_files(files: &Vec<DirEntry>, database: &tauri::State<Database>) -> Resu
             .to_str()
             .ok_or(Error::Generic("Could not get string from path".to_owned()))?
             .to_owned();
+
+        let date = get_date(&path)?;
+        debug!("{date}");
         descriptors.push(FileDesc {
             path,
             uuid: Uuid::new_v4(),
+            date,
         });
     }
 
@@ -171,9 +175,21 @@ fn index_files(files: &Vec<DirEntry>, database: &tauri::State<Database>) -> Resu
     return Ok(descriptors);
 }
 
+fn get_date(path: &String) -> Result<String> {
+    let file = std::fs::File::open(path)?;
+    let mut buf_reader = std::io::BufReader::new(&file);
+    let exif_reader = exif::Reader::new();
+    let exif = exif_reader.read_from_container(&mut buf_reader)?;
+    let date = exif
+        .get_field(exif::Tag::DateTimeOriginal, exif::In::PRIMARY)
+        .ok_or(Error::Generic("could not get date from image".to_owned()))?;
+    return Ok(date.display_value().to_string());
+}
+
 pub struct FileDesc {
     path: String,
     uuid: Uuid,
+    date: String,
 }
 
 fn get_files_from_dir(dir: &str) -> Result<Vec<DirEntry>> {

@@ -26,6 +26,7 @@ walkdir = "2.3.3"
 uuid = { version = "1.4.0", features = ["v4", "fast-rng"] }
 fast_image_resize = "2.7.3"
 image = "0.24.6"
+kamadak-exif = "0.5.5"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem

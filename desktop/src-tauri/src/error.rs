@@ -10,6 +10,8 @@ pub enum Error {
     DBMigrations(#[from] rusqlite_migration::Error),
     #[error(transparent)]
     Tauri(#[from] tauri::Error),
+    #[error(transparent)]
+    Exif(#[from] exif::Error),
     #[error("{0}")]
     Generic(String),
     #[error("Runtime error: {0}")]

@@ -4,6 +4,7 @@
 mod database;
 mod error;
 
+use chrono::{DateTime, Utc};
 use database::Database;
 use error::{Error, Result};
 use fast_image_resize as fr;
@@ -22,6 +23,8 @@ use std::{
 use tauri::{AppHandle, Manager};
 use uuid::Uuid;
 use walkdir::{DirEntry, WalkDir};
+
+const DATE_TIME_FORMAT: &'static str = "%Y-%m-%d %H:%M:%S \"%z\"";
 
 #[tauri::command]
 async fn send_image() {
@@ -162,7 +165,6 @@ fn index_files(files: &Vec<DirEntry>, database: &tauri::State<Database>) -> Resu
             .to_owned();
 
         let date = get_date(&path)?;
-        debug!("{date}");
         descriptors.push(FileDesc {
             path,
             uuid: Uuid::new_v4(),
@@ -175,21 +177,34 @@ fn index_files(files: &Vec<DirEntry>, database: &tauri::State<Database>) -> Resu
     return Ok(descriptors);
 }
 
-fn get_date(path: &String) -> Result<String> {
+fn get_date(path: &String) -> Result<DateTime<Utc>> {
     let file = std::fs::File::open(path)?;
     let mut buf_reader = std::io::BufReader::new(&file);
     let exif_reader = exif::Reader::new();
     let exif = exif_reader.read_from_container(&mut buf_reader)?;
+
     let date = exif
         .get_field(exif::Tag::DateTimeOriginal, exif::In::PRIMARY)
         .ok_or(Error::Generic("could not get date from image".to_owned()))?;
-    return Ok(date.display_value().to_string());
+    let date = date.display_value().to_string();
+
+    let offset = exif
+        .get_field(exif::Tag::OffsetTimeOriginal, exif::In::PRIMARY)
+        .ok_or(Error::Generic("could not get time offset".to_owned()))?;
+    let offset = offset.display_value().to_string();
+
+    let datetime = format!("{date} {offset}");
+    let datetime = DateTime::parse_from_str(&datetime, DATE_TIME_FORMAT)
+        .map_err(|err| Error::Generic(err.to_string()))?;
+
+    let utc = datetime.with_timezone(&Utc);
+    return Ok(utc);
 }
 
 pub struct FileDesc {
     path: String,
     uuid: Uuid,
-    date: String,
+    date: DateTime<Utc>,
 }
 
 fn get_files_from_dir(dir: &str) -> Result<Vec<DirEntry>> {

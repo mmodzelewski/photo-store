@@ -1,5 +1,6 @@
+use chrono::{DateTime, Utc};
 use log::debug;
-use rusqlite::Connection;
+use rusqlite::{types::ToSqlOutput, Connection, ToSql};
 use rusqlite_migration::{Migrations, M};
 use std::{
     path::PathBuf,
@@ -29,7 +30,8 @@ impl Database {
                 "CREATE TABLE file (
                     id INTEGER PRIMARY KEY,
                     path TEXT NOT NULL UNIQUE,
-                    uuid BLOB NOT NULL UNIQUE
+                    uuid BLOB NOT NULL UNIQUE,
+                    date TEXT NOT NULL
                 );",
             ),
         ]);
@@ -85,9 +87,9 @@ impl Database {
         let tx = conn.transaction()?;
 
         {
-            let mut stmt = tx.prepare("INSERT INTO file (path, uuid) VALUES (?1, ?2)")?;
+            let mut stmt = tx.prepare("INSERT INTO file (path, uuid, date) VALUES (?1, ?2, ?3)")?;
             for path in paths {
-                stmt.execute((&path.path, &path.uuid))?;
+                stmt.execute((&path.path, path.uuid, SqlDate(path.date)))?;
             }
         }
 
@@ -102,7 +104,7 @@ impl Database {
             Ok(FileDesc {
                 path: row.get(0)?,
                 uuid: row.get(1)?,
-                date: String::default(),
+                date: DateTime::default(),
             })
         })?;
         let mut descriptors = Vec::new();
@@ -123,7 +125,7 @@ impl Database {
             Ok(FileDesc {
                 path: row.get(0)?,
                 uuid: row.get(1)?,
-                date: String::default(),
+                date: DateTime::default(),
             })
         })?;
         let mut descriptors = Vec::new();
@@ -139,5 +141,14 @@ impl Database {
             .connection
             .lock()
             .map_err(|err| Error::Generic(err.to_string()));
+    }
+}
+
+struct SqlDate(DateTime<Utc>);
+
+impl ToSql for SqlDate {
+    fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
+        let val = self.0.to_rfc3339();
+        return Ok(ToSqlOutput::Owned(rusqlite::types::Value::Text(val)));
     }
 }

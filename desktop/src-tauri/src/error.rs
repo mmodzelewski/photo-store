@@ -12,6 +12,8 @@ pub enum Error {
     Tauri(#[from] tauri::Error),
     #[error(transparent)]
     Exif(#[from] exif::Error),
+    #[error(transparent)]
+    TimeParsing(#[from] time::error::Parse),
     #[error("{0}")]
     Generic(String),
     #[error("Runtime error: {0}")]

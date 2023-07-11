@@ -1,16 +1,15 @@
-use chrono::{DateTime, Utc};
+use crate::{
+    error::{Error, Result},
+    FileDesc,
+};
 use log::debug;
-use rusqlite::{types::ToSqlOutput, Connection, ToSql};
+use rusqlite::Connection;
 use rusqlite_migration::{Migrations, M};
 use std::{
     path::PathBuf,
     sync::{Mutex, MutexGuard},
 };
-
-use crate::{
-    error::{Error, Result},
-    FileDesc,
-};
+use time::OffsetDateTime;
 
 pub struct Database {
     connection: Mutex<Connection>,
@@ -89,7 +88,7 @@ impl Database {
         {
             let mut stmt = tx.prepare("INSERT INTO file (path, uuid, date) VALUES (?1, ?2, ?3)")?;
             for path in paths {
-                stmt.execute((&path.path, path.uuid, SqlDate(path.date)))?;
+                stmt.execute((&path.path, path.uuid, path.date))?;
             }
         }
 
@@ -104,7 +103,7 @@ impl Database {
             Ok(FileDesc {
                 path: row.get(0)?,
                 uuid: row.get(1)?,
-                date: DateTime::default(),
+                date: OffsetDateTime::now_utc(),
             })
         })?;
         let mut descriptors = Vec::new();
@@ -125,7 +124,7 @@ impl Database {
             Ok(FileDesc {
                 path: row.get(0)?,
                 uuid: row.get(1)?,
-                date: DateTime::default(),
+                date: OffsetDateTime::now_utc(),
             })
         })?;
         let mut descriptors = Vec::new();
@@ -141,14 +140,5 @@ impl Database {
             .connection
             .lock()
             .map_err(|err| Error::Generic(err.to_string()));
-    }
-}
-
-struct SqlDate(DateTime<Utc>);
-
-impl ToSql for SqlDate {
-    fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
-        let val = self.0.to_rfc3339();
-        return Ok(ToSqlOutput::Owned(rusqlite::types::Value::Text(val)));
     }
 }

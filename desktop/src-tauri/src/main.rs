@@ -4,7 +4,6 @@
 mod database;
 mod error;
 
-use chrono::{DateTime, Utc};
 use database::Database;
 use error::{Error, Result};
 use fast_image_resize as fr;
@@ -21,10 +20,15 @@ use std::{
     path::PathBuf,
 };
 use tauri::{AppHandle, Manager};
+use time::format_description::FormatItem;
+use time::macros::format_description;
+use time::OffsetDateTime;
 use uuid::Uuid;
 use walkdir::{DirEntry, WalkDir};
 
-const DATE_TIME_FORMAT: &'static str = "%Y-%m-%d %H:%M:%S \"%z\"";
+const DATE_TIME_FORMAT: &'static [FormatItem<'static>] = format_description!(
+    "[year]-[month]-[day] [hour]:[minute]:[second] \"[offset_hour]:[offset_minute]\""
+);
 
 #[tauri::command]
 async fn send_image() {
@@ -177,7 +181,7 @@ fn index_files(files: &Vec<DirEntry>, database: &tauri::State<Database>) -> Resu
     return Ok(descriptors);
 }
 
-fn get_date(path: &String) -> Result<DateTime<Utc>> {
+fn get_date(path: &String) -> Result<OffsetDateTime> {
     let file = std::fs::File::open(path)?;
     let mut buf_reader = std::io::BufReader::new(&file);
     let exif_reader = exif::Reader::new();
@@ -194,17 +198,15 @@ fn get_date(path: &String) -> Result<DateTime<Utc>> {
     let offset = offset.display_value().to_string();
 
     let datetime = format!("{date} {offset}");
-    let datetime = DateTime::parse_from_str(&datetime, DATE_TIME_FORMAT)
-        .map_err(|err| Error::Generic(err.to_string()))?;
+    let datetime = OffsetDateTime::parse(&datetime, DATE_TIME_FORMAT)?;
 
-    let utc = datetime.with_timezone(&Utc);
-    return Ok(utc);
+    return Ok(datetime);
 }
 
 pub struct FileDesc {
     path: String,
     uuid: Uuid,
-    date: DateTime<Utc>,
+    date: OffsetDateTime,
 }
 
 fn get_files_from_dir(dir: &str) -> Result<Vec<DirEntry>> {

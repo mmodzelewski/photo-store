@@ -9,7 +9,6 @@ use std::{
     path::PathBuf,
     sync::{Mutex, MutexGuard},
 };
-use time::OffsetDateTime;
 
 pub struct Database {
     connection: Mutex<Connection>,
@@ -98,12 +97,12 @@ impl Database {
 
     pub fn get_indexed_images(self: &Self) -> Result<Vec<FileDesc>> {
         let conn = self.get_connection()?;
-        let mut statement = conn.prepare("SELECT path, uuid FROM file")?;
+        let mut statement = conn.prepare("SELECT path, uuid, date FROM file ORDER BY date DESC")?;
         let rows = statement.query_map([], |row| {
             Ok(FileDesc {
                 path: row.get(0)?,
                 uuid: row.get(1)?,
-                date: OffsetDateTime::now_utc(),
+                date: row.get(2)?,
             })
         })?;
         let mut descriptors = Vec::new();
@@ -119,12 +118,12 @@ impl Database {
         let page_size = 20usize;
         let offset = page * page_size;
         let mut statement =
-            conn.prepare("SELECT path, uuid FROM file ORDER BY id LIMIT (?1), (?2)")?;
+            conn.prepare("SELECT path, uuid, date FROM file ORDER BY date DESC LIMIT (?1), (?2)")?;
         let rows = statement.query_map([offset, page_size], |row| {
             Ok(FileDesc {
                 path: row.get(0)?,
                 uuid: row.get(1)?,
-                date: OffsetDateTime::now_utc(),
+                date: row.get(2)?,
             })
         })?;
         let mut descriptors = Vec::new();

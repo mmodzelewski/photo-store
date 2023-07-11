@@ -17,8 +17,8 @@ across multiple platforms.
 once the [PR](https://github.com/tauri-apps/plugins-workspace/pull/32) is merged~~ - 
 no longer needed, it's covered by saving and restoring settings from db
 - [x] Change command for indexing images to async
-- [ ] Add exif data to images index
-- [ ] Display images in chronological order
+- [ ] Add exif data to images index (original date added)
+- [x] Display images in chronological order
 - [ ] Change process for generating thumbnails - maybe on demand?
 - [ ] Add custom assets protocol for getting images by id and resolution
 - [ ] Test performance for storing thumbnails in sqlite

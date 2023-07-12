@@ -38,7 +38,7 @@
     bind:this={ref}
     on:view_entered={() => (show = true)}
     on:view_left={() => (show = false)}
-    class="flex items-center border-solid border-2 border-slate-700 w-80 h-80"
+    class="flex h-80 w-80 items-center border-2 border-solid border-slate-700"
 >
     {#if show}
         <img src={path} />

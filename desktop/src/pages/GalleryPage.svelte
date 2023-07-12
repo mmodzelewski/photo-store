@@ -20,7 +20,7 @@
 
 <h2>Gallery page</h2>
 
-<div class="gap-4 grid grid-flow-row-dense grid-cols-4">
+<div class="grid grid-flow-row-dense grid-cols-4 gap-4">
     {#each images as image (image.path)}
         <Photo path={image.asset} />
     {/each}

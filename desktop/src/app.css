@@ -4,7 +4,7 @@
 @tailwind utilities;
 
 html {
-    background: #333;
+    background: theme(colors.zinc.800);
 }
 
 h1 {

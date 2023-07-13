@@ -62,6 +62,7 @@ struct FilesIndexed {
 struct ThumbnailsGenerated {
     done: usize,
     total: usize,
+    latest: String,
 }
 
 #[tauri::command]
@@ -110,12 +111,18 @@ fn generate_thumbnails(files: &Vec<FileDesc>, app_handle: &AppHandle) -> Result<
     for file in files {
         debug!("Generating thumbnail for {}", &file.path);
         generate_thumbnail(&file, &thumbnails_dir);
+        let thumbnail_path = thumbnails_dir
+            .join(file.uuid.to_string())
+            .to_str()
+            .unwrap_or("")
+            .to_owned();
         done += 1;
         app_handle.emit_all(
             "thumbnails-generated",
             ThumbnailsGenerated {
                 done,
                 total: files.len(),
+                latest: thumbnail_path,
             },
         )?;
     }

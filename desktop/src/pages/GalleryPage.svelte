@@ -2,8 +2,9 @@
 
 <script lang="ts">
     import { convertFileSrc, invoke } from "@tauri-apps/api/tauri";
-    import Photo from "../components/Photo.svelte";
     import { onMount } from "svelte";
+    import Photo from "@components/Photo.svelte";
+
     let images: { path: string; asset: string }[] = [];
 
     async function getImages() {

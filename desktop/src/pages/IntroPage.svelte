@@ -1,11 +1,11 @@
 <script lang="ts">
     import { open } from "@tauri-apps/api/dialog";
-    import Button from "../components/Button.svelte";
     import { invoke, convertFileSrc } from "@tauri-apps/api/tauri";
     import { pictureDir } from "@tauri-apps/api/path";
     import { listen } from "@tauri-apps/api/event";
     import { navigation } from "../navigation";
     import { onDestroy, onMount } from "svelte";
+    import Button from "@components/Button.svelte";
 
     type ThumbnailsGeneratedPayload = {
         done: number;

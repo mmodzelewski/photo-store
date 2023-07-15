@@ -1,6 +1,6 @@
 import { writable } from "svelte/store";
-import IntroPage from "./pages/IntroPage.svelte";
-import GalleryPage from "./pages/GalleryPage.svelte";
+import IntroPage from "@pages/IntroPage.svelte";
+import GalleryPage from "@pages/GalleryPage.svelte";
 import { invoke } from "@tauri-apps/api";
 
 async function createNavigation() {

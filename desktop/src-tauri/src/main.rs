@@ -83,6 +83,7 @@ async fn save_images_dirs(
         .collect::<Vec<_>>();
 
     let current_time = std::time::SystemTime::now();
+    debug!("Start indexing");
     let descriptors = index_files(&files, &database)?;
     debug!("Indexing took {:?}", current_time.elapsed().unwrap());
     app_handle.emit_all(
@@ -175,20 +176,29 @@ fn index_files(files: &Vec<DirEntry>, database: &tauri::State<Database>) -> Resu
             .ok_or(Error::Generic("Could not get string from path".to_owned()))?
             .to_owned();
 
-        let date = get_date(&path)?;
+        let date = get_date(&file, &path)?;
         descriptors.push(FileDesc {
             path,
             uuid: Uuid::new_v4(),
             date,
         });
     }
-
+    debug!("Saving to db");
     database.index_files(&descriptors)?;
 
     return Ok(descriptors);
 }
 
-fn get_date(path: &String) -> Result<OffsetDateTime> {
+fn get_date(file: &DirEntry, path: &String) -> Result<OffsetDateTime> {
+    return get_date_from_exif(path).or_else(|_| get_file_date(file));
+}
+
+fn get_file_date(file: &DirEntry) -> Result<OffsetDateTime> {
+    let created = file.metadata()?.created()?;
+    return Ok(created.into());
+}
+
+fn get_date_from_exif(path: &String) -> Result<OffsetDateTime> {
     let file = std::fs::File::open(path)?;
     let mut buf_reader = std::io::BufReader::new(&file);
     let exif_reader = exif::Reader::new();

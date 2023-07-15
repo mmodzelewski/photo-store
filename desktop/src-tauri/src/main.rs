@@ -13,6 +13,7 @@ use image::io::Reader as ImageReader;
 use image::{ColorType, ImageEncoder};
 use log::debug;
 use reqwest::multipart::Part;
+use serde::Serialize;
 use std::{
     fs::{self, File},
     io::BufWriter,
@@ -239,11 +240,15 @@ fn get_files_from_dir(dir: &str) -> Result<Vec<DirEntry>> {
         });
 }
 
+#[derive(Debug, Serialize)]
+struct Image {
+    id: Uuid,
+    path: String,
+    thumbnail_path: String,
+}
+
 #[tauri::command]
-fn get_indexed_images(
-    app_handle: AppHandle,
-    database: tauri::State<Database>,
-) -> Result<Vec<String>> {
+fn get_images(app_handle: AppHandle, database: tauri::State<Database>) -> Result<Vec<Image>> {
     debug!("Getting indexed files");
     let descriptors = database.get_indexed_images()?;
 
@@ -255,17 +260,23 @@ fn get_indexed_images(
         ))?;
     let thumbnails_dir = thumbnails_dir.join("thumbnails");
 
-    let paths = descriptors
-        .iter()
-        .filter_map(|desc| {
-            thumbnails_dir
+    let images = descriptors
+        .into_iter()
+        .map(|desc| {
+            let thumbnail_path = thumbnails_dir
                 .join(&desc.uuid.to_string())
                 .to_str()
                 .map(|str| str.to_owned())
+                .unwrap_or(String::default());
+            return Image {
+                id: desc.uuid,
+                path: desc.path,
+                thumbnail_path,
+            };
         })
         .collect();
 
-    return Ok(paths);
+    return Ok(images);
 }
 
 #[tauri::command]
@@ -310,7 +321,7 @@ fn main() {
             send_image,
             save_images_dirs,
             has_images_dirs,
-            get_indexed_images,
+            get_images,
             get_indexed_images_paged,
         ])
         .setup(|app| {

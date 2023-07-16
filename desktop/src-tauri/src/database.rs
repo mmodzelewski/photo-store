@@ -29,7 +29,8 @@ impl Database {
                     id INTEGER PRIMARY KEY,
                     path TEXT NOT NULL UNIQUE,
                     uuid BLOB NOT NULL UNIQUE,
-                    date TEXT NOT NULL
+                    date TEXT NOT NULL,
+                    sha256 TEXT NOT NULL
                 );",
             ),
         ]);
@@ -42,7 +43,7 @@ impl Database {
         });
     }
 
-    pub fn save_directories(self: &Self, dirs: &Vec<&str>) -> Result<()> {
+    pub fn save_directories(&self, dirs: &Vec<&str>) -> Result<()> {
         let mut conn = self.get_connection()?;
 
         let tx = conn.transaction()?;
@@ -56,7 +57,7 @@ impl Database {
         return Ok(());
     }
 
-    pub fn has_images_dirs(self: &Self) -> Result<bool> {
+    pub fn has_images_dirs(&self) -> Result<bool> {
         let conn = self.get_connection()?;
 
         let dirs_count = conn.query_row("SELECT COUNT(1) FROM directory", (), |row| {
@@ -66,7 +67,7 @@ impl Database {
         return Ok(dirs_count > 0);
     }
 
-    pub fn get_directories(self: &Self) -> Result<Vec<String>> {
+    pub fn get_directories(&self) -> Result<Vec<String>> {
         let conn = self.get_connection()?;
 
         let mut statement = conn.prepare("SELECT path FROM directory")?;
@@ -80,14 +81,15 @@ impl Database {
         return Ok(dirs);
     }
 
-    pub fn index_files(self: &Self, paths: &Vec<FileDesc>) -> Result<()> {
+    pub fn index_files(&self, descriptors: &Vec<FileDesc>) -> Result<()> {
         let mut conn = self.get_connection()?;
         let tx = conn.transaction()?;
 
         {
-            let mut stmt = tx.prepare("INSERT INTO file (path, uuid, date) VALUES (?1, ?2, ?3)")?;
-            for path in paths {
-                stmt.execute((&path.path, path.uuid, path.date))?;
+            let mut stmt =
+                tx.prepare("INSERT INTO file (path, uuid, date, sha256) VALUES (?1, ?2, ?3, ?4)")?;
+            for desc in descriptors {
+                stmt.execute((&desc.path, desc.uuid, desc.date, &desc.sha256))?;
             }
         }
 
@@ -95,14 +97,16 @@ impl Database {
         return Ok(());
     }
 
-    pub fn get_indexed_images(self: &Self) -> Result<Vec<FileDesc>> {
+    pub fn get_indexed_images(&self) -> Result<Vec<FileDesc>> {
         let conn = self.get_connection()?;
-        let mut statement = conn.prepare("SELECT path, uuid, date FROM file ORDER BY date DESC")?;
+        let mut statement =
+            conn.prepare("SELECT path, uuid, date, sha256 FROM file ORDER BY date DESC")?;
         let rows = statement.query_map([], |row| {
             Ok(FileDesc {
                 path: row.get(0)?,
                 uuid: row.get(1)?,
                 date: row.get(2)?,
+                sha256: row.get(3)?,
             })
         })?;
         let mut descriptors = Vec::new();
@@ -112,18 +116,20 @@ impl Database {
         debug!("Got {} files from index", descriptors.len());
         return Ok(descriptors);
     }
-    pub fn get_indexed_images_paged(self: &Self, page: usize) -> Result<Vec<FileDesc>> {
+    pub fn get_indexed_images_paged(&self, page: usize) -> Result<Vec<FileDesc>> {
         let conn = self.get_connection()?;
 
         let page_size = 20usize;
         let offset = page * page_size;
-        let mut statement =
-            conn.prepare("SELECT path, uuid, date FROM file ORDER BY date DESC LIMIT (?1), (?2)")?;
+        let mut statement = conn.prepare(
+            "SELECT path, uuid, date, sha256 FROM file ORDER BY date DESC LIMIT (?1), (?2)",
+        )?;
         let rows = statement.query_map([offset, page_size], |row| {
             Ok(FileDesc {
                 path: row.get(0)?,
                 uuid: row.get(1)?,
                 date: row.get(2)?,
+                sha256: row.get(3)?,
             })
         })?;
         let mut descriptors = Vec::new();
@@ -134,7 +140,7 @@ impl Database {
         return Ok(descriptors);
     }
 
-    fn get_connection(self: &Self) -> Result<MutexGuard<'_, Connection>> {
+    fn get_connection(&self) -> Result<MutexGuard<'_, Connection>> {
         return self
             .connection
             .lock()

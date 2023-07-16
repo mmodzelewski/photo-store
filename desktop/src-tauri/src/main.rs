@@ -4,6 +4,7 @@
 mod database;
 mod error;
 
+use base64ct::{Base64, Encoding};
 use database::Database;
 use error::{Error, Result};
 use fast_image_resize as fr;
@@ -14,6 +15,8 @@ use image::{ColorType, ImageEncoder};
 use log::debug;
 use reqwest::multipart::Part;
 use serde::Serialize;
+use sha2::{Digest, Sha256};
+use std::path::Path;
 use std::{
     fs::{self, File},
     io::BufWriter,
@@ -177,17 +180,27 @@ fn index_files(files: &Vec<DirEntry>, database: &tauri::State<Database>) -> Resu
             .ok_or(Error::Generic("Could not get string from path".to_owned()))?
             .to_owned();
 
+        let sha256 = hash(file.path())?;
+
         let date = get_date(&file, &path)?;
         descriptors.push(FileDesc {
             path,
             uuid: Uuid::new_v4(),
             date,
+            sha256,
         });
     }
     debug!("Saving to db");
     database.index_files(&descriptors)?;
 
     return Ok(descriptors);
+}
+
+fn hash(path: &Path) -> Result<String> {
+    let file = fs::read(path)?;
+    let hash = Sha256::digest(&file);
+    let encoded = Base64::encode_string(&hash);
+    return Ok(encoded);
 }
 
 fn get_date(file: &DirEntry, path: &String) -> Result<OffsetDateTime> {
@@ -225,6 +238,7 @@ pub struct FileDesc {
     path: String,
     uuid: Uuid,
     date: OffsetDateTime,
+    sha256: String,
 }
 
 fn get_files_from_dir(dir: &str) -> Result<Vec<DirEntry>> {

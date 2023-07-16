@@ -146,6 +146,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "604178f6c5c21f02dc555784810edfb88d34ac2c73b2eae109655649ee73ce3d"
 
 [[package]]
+name = "base64ct"
+version = "1.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8c3c1a368f70d6cf7302d78f8f7093da241fb8e8807c05cc9e51a125895a6d5b"
+
+[[package]]
 name = "bit_field"
 version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2259,6 +2265,7 @@ dependencies = [
 name = "photo-store"
 version = "0.0.0"
 dependencies = [
+ "base64ct",
  "env_logger",
  "fast_image_resize",
  "image",
@@ -2269,6 +2276,7 @@ dependencies = [
  "rusqlite_migration",
  "serde",
  "serde_json",
+ "sha2",
  "tauri",
  "tauri-build",
  "thiserror",

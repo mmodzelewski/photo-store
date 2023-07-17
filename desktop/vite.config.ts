@@ -7,12 +7,10 @@ import * as path from "path";
 export default defineConfig(async () => ({
     plugins: [
         svelte({
-            preprocess: [
-                sveltePreprocess({
-                    typescript: true,
-                    postcss: true,
-                }),
-            ],
+            preprocess: [sveltePreprocess()],
+            compilerOptions: {
+                immutable: true,
+            },
         }),
     ],
 

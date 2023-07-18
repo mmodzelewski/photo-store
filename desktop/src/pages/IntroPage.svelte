@@ -87,7 +87,7 @@
                 {thumbnailsGenerated.done} / {thumbnailsGenerated.total}
             </p>
             <div class="h-36 w-36 overflow-hidden">
-                <img src={thumbnailToDisplay} />
+                <img src={thumbnailToDisplay} alt="Currently processed item" />
             </div>
         </div>
     {/if}

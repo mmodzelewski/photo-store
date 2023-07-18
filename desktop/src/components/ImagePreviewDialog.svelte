@@ -29,12 +29,12 @@
 
 <dialog
     bind:this={dialog}
-    on:click={() => dialog.close()}
     class="aspect-auto w-9/12 rounded-lg border-2 border-solid border-zinc-500 bg-zinc-700 text-white"
 >
-    <div on:click|stopPropagation>
+    <div>
         <Button on:click={() => (index -= 1)} disabled={!hasPrev}>Prev</Button>
-        <img src={imagePath} />
+        <Button on:click={() => dialog.close()}>Close</Button>
+        <img src={imagePath} alt="Full-size preview" />
         <Button disabled={!hasNext} on:click={() => (index += 1)}>Next</Button>
     </div>
 </dialog>

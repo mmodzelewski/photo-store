@@ -34,7 +34,7 @@
     });
 </script>
 
-<div
+<button
     bind:this={ref}
     on:view_entered={() => (show = true)}
     on:view_left={() => (show = false)}
@@ -42,6 +42,6 @@
     on:click
 >
     {#if show}
-        <img src={convertedPath} />
+        <img src={convertedPath} alt="Description" />
     {/if}
-</div>
+</button>

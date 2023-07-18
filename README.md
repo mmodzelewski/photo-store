@@ -27,5 +27,5 @@ across multiple platforms.
 - [ ] Test performance for storing thumbnails in sqlite
 - [ ] Add option for adding/removing source directories
 - [ ] Watch file changes: add, remove, move
-- [ ] Add prev/next navigation when previwing an image
+- [x] Add prev/next navigation when previwing an image
 - [ ] Generate multiple thumbnails sizes

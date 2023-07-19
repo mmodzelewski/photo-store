@@ -3,32 +3,25 @@
 
 mod database;
 mod error;
+mod image;
 
 use base64ct::{Base64, Encoding};
 use database::Database;
 use error::{Error, Result};
-use fast_image_resize as fr;
-use fr::FilterType;
-use image::codecs::jpeg::JpegEncoder;
-use image::io::Reader as ImageReader;
-use image::{ColorType, ImageEncoder};
 use log::debug;
 use reqwest::multipart::Part;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
+use std::fs;
 use std::path::Path;
-use std::{
-    fs::{self, File},
-    io::BufWriter,
-    num::NonZeroU32,
-    path::PathBuf,
-};
 use tauri::{AppHandle, Manager};
 use time::format_description::FormatItem;
 use time::macros::format_description;
 use time::OffsetDateTime;
 use uuid::Uuid;
 use walkdir::{DirEntry, WalkDir};
+
+use crate::image::generate_thumbnail;
 
 const DATE_TIME_FORMAT: &'static [FormatItem<'static>] = format_description!(
     "[year]-[month]-[day] [hour]:[minute]:[second] \"[offset_hour]:[offset_minute]\""
@@ -133,42 +126,6 @@ fn generate_thumbnails(files: &Vec<FileDesc>, app_handle: &AppHandle) -> Result<
     }
 
     return Ok(());
-}
-
-fn generate_thumbnail(file_desc: &FileDesc, folder_path: &PathBuf) {
-    let file = ImageReader::open(&file_desc.path).unwrap();
-    let img = file.decode().unwrap();
-
-    let width = NonZeroU32::new(img.width()).unwrap();
-    let height = NonZeroU32::new(img.height()).unwrap();
-    let src_image =
-        fr::Image::from_vec_u8(width, height, img.to_rgb8().into_raw(), fr::PixelType::U8x3)
-            .unwrap();
-    let mut src_view = src_image.view();
-
-    let dst_width = NonZeroU32::new(512).unwrap();
-    let dst_height = NonZeroU32::new(512).unwrap();
-    src_view.set_crop_box_to_fit_dst_size(dst_width, dst_height, None);
-    let mut dst_image = fr::Image::new(dst_width, dst_height, src_view.pixel_type());
-
-    let mut dst_view = dst_image.view_mut();
-
-    let mut resizer = fr::Resizer::new(fr::ResizeAlg::Convolution(FilterType::Lanczos3));
-    resizer.resize(&src_view, &mut dst_view).unwrap();
-
-    let uuid = &file_desc.uuid;
-    let thumbnail_path = folder_path.join(uuid.to_string());
-    let thumbnail_file = File::create(thumbnail_path).unwrap();
-    let mut result_buf = BufWriter::new(thumbnail_file);
-
-    JpegEncoder::new(&mut result_buf)
-        .write_image(
-            dst_image.buffer(),
-            dst_width.get(),
-            dst_height.get(),
-            ColorType::Rgb8,
-        )
-        .unwrap();
 }
 
 fn index_files(files: &Vec<DirEntry>, database: &tauri::State<Database>) -> Result<Vec<FileDesc>> {

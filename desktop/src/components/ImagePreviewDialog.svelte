@@ -9,9 +9,9 @@
     };
 
     export let images: Image[] = [];
-    export function open(index: number) {
+    export function open(image_index: number) {
         dialog.showModal();
-        this.index = index;
+        index = image_index;
     }
 
     let index = 0;

@@ -108,12 +108,8 @@ fn generate_thumbnails(files: &Vec<FileDesc>, app_handle: &AppHandle) -> Result<
     let mut done: usize = 0;
     for file in files {
         debug!("Generating thumbnail for {}", &file.path);
-        generate_thumbnail(&file, &thumbnails_dir);
-        let thumbnail_path = thumbnails_dir
-            .join(file.uuid.to_string())
-            .to_str()
-            .unwrap_or("")
-            .to_owned();
+        let thumbnail_path = generate_thumbnail(&file, &thumbnails_dir);
+        let thumbnail_path = thumbnail_path.to_str().unwrap_or("").to_owned();
         done += 1;
         app_handle.emit_all(
             "thumbnails-generated",
@@ -236,6 +232,7 @@ fn get_images(app_handle: AppHandle, database: tauri::State<Database>) -> Result
         .map(|desc| {
             let thumbnail_path = thumbnails_dir
                 .join(&desc.uuid.to_string())
+                .join("512x512")
                 .to_str()
                 .map(|str| str.to_owned())
                 .unwrap_or(String::default());

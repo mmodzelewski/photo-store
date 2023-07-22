@@ -86,9 +86,11 @@
             <p>
                 {thumbnailsGenerated.done} / {thumbnailsGenerated.total}
             </p>
-            <div class="h-36 w-36 overflow-hidden">
-                <img src={thumbnailToDisplay} alt="Currently processed item" />
-            </div>
+            <img
+                class="h-36 w-36 object-cover"
+                src={thumbnailToDisplay}
+                alt="Currently processed item"
+            />
         </div>
     {/if}
 </dialog>

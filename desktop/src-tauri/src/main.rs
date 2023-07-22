@@ -21,8 +21,6 @@ use time::OffsetDateTime;
 use uuid::Uuid;
 use walkdir::{DirEntry, WalkDir};
 
-use crate::image::generate_thumbnail;
-
 const DATE_TIME_FORMAT: &'static [FormatItem<'static>] = format_description!(
     "[year]-[month]-[day] [hour]:[minute]:[second] \"[offset_hour]:[offset_minute]\""
 );
@@ -108,8 +106,13 @@ fn generate_thumbnails(files: &Vec<FileDesc>, app_handle: &AppHandle) -> Result<
     let mut done: usize = 0;
     for file in files {
         debug!("Generating thumbnail for {}", &file.path);
-        let thumbnail_path = generate_thumbnail(&file, &thumbnails_dir);
-        let thumbnail_path = thumbnail_path.to_str().unwrap_or("").to_owned();
+        let thumbnail_paths = crate::image::generate_thumbnails(&file, &thumbnails_dir);
+        let thumbnail_path = thumbnail_paths
+            .get(0)
+            .unwrap()
+            .to_str()
+            .unwrap_or("")
+            .to_owned();
         done += 1;
         app_handle.emit_all(
             "thumbnails-generated",
@@ -211,7 +214,8 @@ fn get_files_from_dir(dir: &str) -> Result<Vec<DirEntry>> {
 struct Image {
     id: Uuid,
     path: String,
-    thumbnail_path: String,
+    thumbnail_small: String,
+    thumbnail_big: String,
 }
 
 #[tauri::command]
@@ -230,16 +234,23 @@ fn get_images(app_handle: AppHandle, database: tauri::State<Database>) -> Result
     let images = descriptors
         .into_iter()
         .map(|desc| {
-            let thumbnail_path = thumbnails_dir
+            let thumbnail_small = thumbnails_dir
                 .join(&desc.uuid.to_string())
-                .join("512x512")
+                .join("512-cover")
+                .to_str()
+                .map(|str| str.to_owned())
+                .unwrap_or(String::default());
+            let thumbnail_big = thumbnails_dir
+                .join(&desc.uuid.to_string())
+                .join("1920-contain")
                 .to_str()
                 .map(|str| str.to_owned())
                 .unwrap_or(String::default());
             return Image {
                 id: desc.uuid,
                 path: desc.path,
-                thumbnail_path,
+                thumbnail_small,
+                thumbnail_big,
             };
         })
         .collect();

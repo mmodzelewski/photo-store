@@ -7,7 +7,8 @@
     type Image = {
         id: string;
         path: string;
-        thumbnail_path: string;
+        thumbnail_small: string;
+        thumbnail_big: string;
     };
 
     let images: Image[] = [];
@@ -27,7 +28,7 @@
 <div class="grid grid-flow-row-dense grid-cols-4 gap-4">
     {#each images as image, index (image.id)}
         <Photo
-            path={image.thumbnail_path}
+            path={image.thumbnail_small}
             on:click={() => dialog.open(index)}
         />
     {/each}

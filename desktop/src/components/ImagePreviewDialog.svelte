@@ -5,7 +5,8 @@
     type Image = {
         id: string;
         path: string;
-        thumbnail_path: string;
+        thumbnail_small: string;
+        thumbnail_big: string;
     };
 
     export let images: Image[] = [];
@@ -35,7 +36,7 @@
     $: hasNext = index < images.length - 1;
     $: hasPrev = index > 0;
     $: {
-        const path = images[index]?.path;
+        const path = images[index]?.thumbnail_big;
         if (path) {
             imagePath = convertFileSrc(path);
         }

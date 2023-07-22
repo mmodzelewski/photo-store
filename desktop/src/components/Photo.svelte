@@ -42,6 +42,10 @@
     on:click
 >
     {#if show}
-        <img src={convertedPath} alt="Description" />
+        <img
+            class="h-80 w-80 object-cover"
+            src={convertedPath}
+            alt="Description"
+        />
     {/if}
 </button>

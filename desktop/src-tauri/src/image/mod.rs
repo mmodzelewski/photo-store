@@ -49,19 +49,50 @@ impl Size {
     }
 }
 
-pub fn generate_thumbnail(file_desc: &FileDesc, folder_path: &PathBuf) -> PathBuf {
+pub fn generate_thumbnails(file_desc: &FileDesc, folder_path: &PathBuf) -> Vec<PathBuf> {
+    let mut thumbnails = Vec::new();
+
     let img = Image::open(&file_desc.path);
-
     let img = img.get();
-    let mut src_view = img.view();
-    let size = Size {
-        width: 512,
-        height: 512,
-    };
 
-    let dst_width = size.get_non_zero_width();
-    let dst_height = size.get_non_zero_height();
-    src_view.set_crop_box_to_fit_dst_size(dst_width, dst_height, None);
+    thumbnails.push(generate_thumbnail_keep_aspect(
+        &img,
+        file_desc,
+        folder_path,
+        512,
+        true,
+    ));
+
+    thumbnails.push(generate_thumbnail_keep_aspect(
+        &img,
+        file_desc,
+        folder_path,
+        1920,
+        false,
+    ));
+
+    return thumbnails;
+}
+
+fn generate_thumbnail_keep_aspect(
+    img: &fr::Image,
+    file_desc: &FileDesc,
+    folder_path: &PathBuf,
+    max_size: u32,
+    cover: bool,
+) -> PathBuf {
+    let src_view = img.view();
+    let original_size = Size {
+        width: src_view.width().get(),
+        height: src_view.height().get(),
+    };
+    let calculated_size = if cover {
+        calculate_cover_size(original_size, max_size)
+    } else {
+        calculate_contain_size(original_size, max_size)
+    };
+    let dst_width = calculated_size.get_non_zero_width();
+    let dst_height = calculated_size.get_non_zero_height();
     let mut dst_image = fr::Image::new(dst_width, dst_height, src_view.pixel_type());
 
     let mut dst_view = dst_image.view_mut();
@@ -72,7 +103,8 @@ pub fn generate_thumbnail(file_desc: &FileDesc, folder_path: &PathBuf) -> PathBu
     let uuid = &file_desc.uuid;
     let image_thumnails_folder = folder_path.join(uuid.to_string());
     fs::create_dir_all(&image_thumnails_folder).unwrap();
-    let thumbnail_path = image_thumnails_folder.join(format!("{}x{}", size.width, size.height));
+    let cover_label = if cover { "cover" } else { "contain" };
+    let thumbnail_path = image_thumnails_folder.join(format!("{}-{}", max_size, cover_label));
     let thumbnail_file = File::create(&thumbnail_path).unwrap();
     let mut result_buf = BufWriter::new(thumbnail_file);
 
@@ -85,4 +117,44 @@ pub fn generate_thumbnail(file_desc: &FileDesc, folder_path: &PathBuf) -> PathBu
         )
         .unwrap();
     return thumbnail_path;
+}
+
+fn calculate_cover_size(original: Size, max: u32) -> Size {
+    if original.width <= max || original.height <= max {
+        return original;
+    }
+
+    let ratio = original.width as f32 / original.height as f32;
+
+    if ratio > 1.0 {
+        return Size {
+            width: (max as f32 * ratio) as u32,
+            height: max,
+        };
+    } else {
+        return Size {
+            width: max,
+            height: (max as f32 / ratio) as u32,
+        };
+    }
+}
+
+fn calculate_contain_size(original: Size, max: u32) -> Size {
+    if original.width <= max && original.height <= max {
+        return original;
+    }
+
+    let ratio = original.width as f32 / original.height as f32;
+
+    if ratio > 1.0 {
+        return Size {
+            width: max,
+            height: (max as f32 / ratio) as u32,
+        };
+    } else {
+        return Size {
+            width: (max as f32 * ratio) as u32,
+            height: max,
+        };
+    }
 }

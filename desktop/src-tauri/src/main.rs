@@ -314,6 +314,8 @@ fn main() {
             let path = app.path_resolver().app_data_dir().ok_or(Error::Runtime(
                 "Could not get app data directory".to_owned(),
             ))?;
+            fs::create_dir_all(&path)?;
+
             app.manage(Database::init(path)?);
             update_scopes(app)?;
             return Ok(());

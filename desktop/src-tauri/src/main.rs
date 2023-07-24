@@ -205,7 +205,10 @@ fn get_files_from_dir(dir: &str) -> Result<Vec<DirEntry>> {
         .map(|vec| {
             vec.into_iter()
                 .filter(|entry| entry.file_type().is_file())
-                .filter(|entry| entry.file_name().to_str().unwrap().ends_with(".jpg"))
+                .filter(|entry| {
+                    let file_name = entry.file_name().to_str().unwrap();
+                    return file_name.ends_with(".jpg") || file_name.ends_with(".jpeg");
+                })
                 .collect::<Vec<_>>()
         });
 }

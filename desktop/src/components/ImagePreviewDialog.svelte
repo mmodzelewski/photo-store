@@ -1,13 +1,6 @@
 <script lang="ts">
     import Button from "@components/Button.svelte";
-    import { convertFileSrc } from "@tauri-apps/api/tauri";
-
-    type Image = {
-        id: string;
-        path: string;
-        thumbnail_small: string;
-        thumbnail_big: string;
-    };
+    import { toContainUri, type Image } from "src/lib/image";
 
     export let images: Image[] = [];
     export function open(image_index: number) {
@@ -36,9 +29,9 @@
     $: hasNext = index < images.length - 1;
     $: hasPrev = index > 0;
     $: {
-        const path = images[index]?.thumbnail_big;
-        if (path) {
-            imagePath = convertFileSrc(path);
+        const image = images[index];
+        if (image) {
+            imagePath = toContainUri(image);
         }
     }
 </script>

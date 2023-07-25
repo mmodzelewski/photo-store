@@ -38,6 +38,7 @@ export default defineConfig(async () => ({
         alias: {
             "@components": path.resolve("src/components"),
             "@pages": path.resolve("src/pages"),
+            src: path.resolve("src"),
         },
     },
 }));

@@ -1,3 +1,5 @@
+pub(crate) mod image_protocol;
+
 use crate::FileDesc;
 use ::image::codecs::jpeg::JpegEncoder;
 use ::image::io::Reader as ImageReader;

@@ -1,4 +1,5 @@
 <script context="module" lang="ts">
+    export type Image = { id: string };
     const observer = new IntersectionObserver(
         (entries) => {
             entries.forEach((entry) => {
@@ -16,11 +17,12 @@
 </script>
 
 <script lang="ts">
-    import { convertFileSrc } from "@tauri-apps/api/tauri";
+    import { toCoverUri } from "src/lib/image";
     import { onDestroy, onMount } from "svelte";
 
-    export let path: string;
-    $: convertedPath = convertFileSrc(path);
+    export let image: Image;
+
+    $: convertedPath = toCoverUri(image);
 
     let show = false;
     let ref: HTMLElement;

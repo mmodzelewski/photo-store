@@ -1,15 +1,9 @@
 <script lang="ts">
     import { invoke } from "@tauri-apps/api/tauri";
     import { onMount } from "svelte";
-    import Photo from "@components/Photo.svelte";
+    import ImageThumbnail from "@components/ImageThumbnail.svelte";
     import ImagePreviewDialog from "@components/ImagePreviewDialog.svelte";
-
-    type Image = {
-        id: string;
-        path: string;
-        thumbnail_small: string;
-        thumbnail_big: string;
-    };
+    import type { Image } from "src/lib/image";
 
     let images: Image[] = [];
     let dialog: ImagePreviewDialog;
@@ -27,10 +21,7 @@
 
 <div class="grid grid-flow-row-dense grid-cols-4 gap-4">
     {#each images as image, index (image.id)}
-        <Photo
-            path={image.thumbnail_small}
-            on:click={() => dialog.open(index)}
-        />
+        <ImageThumbnail {image} on:click={() => dialog.open(index)} />
     {/each}
 </div>
 <ImagePreviewDialog bind:this={dialog} {images} />

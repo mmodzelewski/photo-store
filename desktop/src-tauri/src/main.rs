@@ -5,6 +5,7 @@ mod database;
 mod error;
 mod image;
 
+use crate::image::image_protocol::image_protocol_handler;
 use base64ct::{Base64, Encoding};
 use database::Database;
 use error::{Error, Result};
@@ -306,6 +307,7 @@ fn main() {
             get_images,
             get_indexed_images_paged,
         ])
+        .register_uri_scheme_protocol("image", image_protocol_handler)
         .setup(|app| {
             env_logger::Builder::new()
                 .filter_level(log::LevelFilter::Trace)

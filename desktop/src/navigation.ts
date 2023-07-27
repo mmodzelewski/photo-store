@@ -5,7 +5,7 @@ import { invoke } from "@tauri-apps/api";
 
 async function createNavigation() {
     const hasDirs = await invoke("has_images_dirs");
-    const { subscribe, set } = writable(hasDirs ? GalleryPage : IntroPage);
+    const { subscribe, set } = writable(hasDirs ? IntroPage : IntroPage);
 
     return {
         subscribe,

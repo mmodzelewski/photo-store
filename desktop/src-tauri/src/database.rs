@@ -9,6 +9,7 @@ use std::{
     path::PathBuf,
     sync::{Mutex, MutexGuard},
 };
+use uuid::Uuid;
 
 pub struct Database {
     connection: Mutex<Connection>,
@@ -138,6 +139,24 @@ impl Database {
         }
         debug!("Got {} files from index", descriptors.len());
         return Ok(descriptors);
+    }
+
+    pub fn get_image(&self, id: &str) -> Result<FileDesc> {
+        debug!("Getting image {}", id);
+        let conn = self.get_connection()?;
+        let mut statement =
+            conn.prepare("SELECT path, uuid, date, sha256 FROM file WHERE uuid = ?1")?;
+        let uuid = Uuid::parse_str(id).map_err(|err| Error::Generic(err.to_string()))?;
+        let descriptor = statement.query_row([uuid], |row| {
+            Ok(FileDesc {
+                path: row.get(0)?,
+                uuid: row.get(1)?,
+                date: row.get(2)?,
+                sha256: row.get(3)?,
+            })
+        })?;
+        debug!("Got image {}", id);
+        return Ok(descriptor);
     }
 
     fn get_connection(&self) -> Result<MutexGuard<'_, Connection>> {

@@ -89,7 +89,7 @@ async fn save_images_dirs(
         },
     )?;
 
-    generate_thumbnails(&descriptors, &app_handle)?;
+    // generate_thumbnails(&descriptors, &app_handle)?;
 
     return Ok(());
 }
@@ -191,6 +191,7 @@ fn get_date_from_exif(path: &String) -> Result<OffsetDateTime> {
     return Ok(datetime);
 }
 
+#[derive(Debug)]
 pub struct FileDesc {
     path: String,
     uuid: Uuid,
@@ -294,6 +295,11 @@ fn get_indexed_images_paged(
 
 #[tauri::command]
 fn has_images_dirs(database: tauri::State<Database>) -> Result<bool> {
+    debug!("Checking images dirs");
+    return database.has_images_dirs();
+}
+#[tauri::command]
+fn gen_thumbnail(database: tauri::State<Database>) -> Result<bool> {
     debug!("Checking images dirs");
     return database.has_images_dirs();
 }

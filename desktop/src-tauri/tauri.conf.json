@@ -24,6 +24,12 @@
                     "$APPDATA/**/*"
                 ],
                 "asset": true
+            },
+            "http":{
+                "all": true,
+                "scope": [
+                    "image://localhost/**/*"
+                ]
             }
         },
         "bundle": {
@@ -39,7 +45,7 @@
             ]
         },
         "security": {
-            "csp": "default-src 'self'; img-src 'self' asset: https://asset.localhost"
+            "csp": "default-src 'self'; img-src 'self' asset: image: https://asset.localhost"
         },
         "windows": [
             {

@@ -72,6 +72,7 @@
 
 <div>
     <Button on:click={selectDir}>Select directory</Button>
+    <Button on:click={() => navigation.goToGallery()}>Go to gallery</Button>
 </div>
 <dialog
     bind:this={dialog}

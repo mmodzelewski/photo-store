@@ -7,6 +7,7 @@ use ::image::{ColorType, ImageEncoder};
 use fast_image_resize as fr;
 use fr::FilterType;
 use image::DynamicImage;
+use log::debug;
 use std::fs::{self, File};
 use std::io::BufWriter;
 use std::num::NonZeroU32;
@@ -65,13 +66,15 @@ pub fn generate_thumbnails(file_desc: &FileDesc, folder_path: &PathBuf) -> Vec<P
         true,
     ));
 
-    thumbnails.push(generate_thumbnail_keep_aspect(
-        &img,
-        file_desc,
-        folder_path,
-        1920,
-        false,
-    ));
+    // let start = std::time::Instant::now();
+    // thumbnails.push(generate_thumbnail_keep_aspect(
+    //     &img,
+    //     file_desc,
+    //     folder_path,
+    //     1920,
+    //     false,
+    // ));
+    // debug!("Thumbnail 1920 generated in {:?}", start.elapsed());
 
     return thumbnails;
 }

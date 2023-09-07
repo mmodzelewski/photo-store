@@ -218,43 +218,18 @@ fn get_files_from_dir(dir: &str) -> Result<Vec<DirEntry>> {
 struct Image {
     id: Uuid,
     path: String,
-    thumbnail_small: String,
-    thumbnail_big: String,
 }
 
 #[tauri::command]
-fn get_images(app_handle: AppHandle, database: tauri::State<Database>) -> Result<Vec<Image>> {
+fn get_images(database: tauri::State<Database>) -> Result<Vec<Image>> {
     debug!("Getting indexed files");
     let descriptors = database.get_indexed_images()?;
-
-    let thumbnails_dir = app_handle
-        .path_resolver()
-        .app_data_dir()
-        .ok_or(error::Error::Generic(
-            "Cannot get app data directory".to_owned(),
-        ))?;
-    let thumbnails_dir = thumbnails_dir.join("thumbnails");
-
     let images = descriptors
         .into_iter()
         .map(|desc| {
-            let thumbnail_small = thumbnails_dir
-                .join(&desc.uuid.to_string())
-                .join("512-cover")
-                .to_str()
-                .map(|str| str.to_owned())
-                .unwrap_or(String::default());
-            let thumbnail_big = thumbnails_dir
-                .join(&desc.uuid.to_string())
-                .join("1920-contain")
-                .to_str()
-                .map(|str| str.to_owned())
-                .unwrap_or(String::default());
             return Image {
                 id: desc.uuid,
                 path: desc.path,
-                thumbnail_small,
-                thumbnail_big,
             };
         })
         .collect();

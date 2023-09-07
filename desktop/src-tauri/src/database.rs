@@ -43,7 +43,7 @@ impl Database {
         });
     }
 
-    pub fn save_directories(&self, dirs: &Vec<&str>) -> Result<()> {
+    pub fn save_directories(&self, dirs: &[&str]) -> Result<()> {
         let mut conn = self.get_connection()?;
 
         let tx = conn.transaction()?;

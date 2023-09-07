@@ -10,7 +10,7 @@ use image::DynamicImage;
 use std::fs::{self, File};
 use std::io::BufWriter;
 use std::num::NonZeroU32;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 struct Image {
     data: DynamicImage,
@@ -51,7 +51,7 @@ impl Size {
     }
 }
 
-pub fn generate_thumbnails(file_desc: &FileDesc, folder_path: &PathBuf) -> Vec<PathBuf> {
+pub fn generate_thumbnails(file_desc: &FileDesc, folder_path: &Path) -> Vec<PathBuf> {
     let mut thumbnails = Vec::new();
 
     let img = Image::open(&file_desc.path);
@@ -79,7 +79,7 @@ pub fn generate_thumbnails(file_desc: &FileDesc, folder_path: &PathBuf) -> Vec<P
 fn generate_thumbnail_keep_aspect(
     img: &fr::Image,
     file_desc: &FileDesc,
-    folder_path: &PathBuf,
+    folder_path: &Path,
     max_size: u32,
     cover: bool,
 ) -> PathBuf {

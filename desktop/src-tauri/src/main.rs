@@ -22,7 +22,7 @@ use time::OffsetDateTime;
 use uuid::Uuid;
 use walkdir::{DirEntry, WalkDir};
 
-const DATE_TIME_FORMAT: &'static [FormatItem<'static>] = format_description!(
+const DATE_TIME_FORMAT: &[FormatItem<'static>] = format_description!(
     "[year]-[month]-[day] [hour]:[minute]:[second] \"[offset_hour]:[offset_minute]\""
 );
 
@@ -104,21 +104,19 @@ fn generate_thumbnails(files: &Vec<FileDesc>, app_handle: &AppHandle) -> Result<
     let thumbnails_dir = thumbnails_dir.join("thumbnails");
     fs::create_dir_all(&thumbnails_dir).unwrap();
 
-    let mut done: usize = 0;
-    for file in files {
+    for (done, file) in files.iter().enumerate() {
         debug!("Generating thumbnail for {}", &file.path);
-        let thumbnail_paths = crate::image::generate_thumbnails(&file, &thumbnails_dir);
+        let thumbnail_paths = crate::image::generate_thumbnails(file, &thumbnails_dir);
         let thumbnail_path = thumbnail_paths
             .get(0)
             .unwrap()
             .to_str()
             .unwrap_or("")
             .to_owned();
-        done += 1;
         app_handle.emit_all(
             "thumbnails-generated",
             ThumbnailsGenerated {
-                done,
+                done: done + 1,
                 total: files.len(),
                 latest: thumbnail_path,
             },
@@ -139,7 +137,7 @@ fn index_files(files: &Vec<DirEntry>, database: &tauri::State<Database>) -> Resu
 
         let sha256 = hash(file.path())?;
 
-        let date = get_date(&file, &path)?;
+        let date = get_date(file, &path)?;
         descriptors.push(FileDesc {
             path,
             uuid: Uuid::new_v4(),
@@ -155,7 +153,7 @@ fn index_files(files: &Vec<DirEntry>, database: &tauri::State<Database>) -> Resu
 
 fn hash(path: &Path) -> Result<String> {
     let file = fs::read(path)?;
-    let hash = Sha256::digest(&file);
+    let hash = Sha256::digest(file);
     let encoded = Base64::encode_string(&hash);
     return Ok(encoded);
 }
@@ -201,7 +199,7 @@ pub struct FileDesc {
 fn get_files_from_dir(dir: &str) -> Result<Vec<DirEntry>> {
     return WalkDir::new(dir)
         .into_iter()
-        .map(|res| res.map_err(|err| Error::Walkdir(err)))
+        .map(|res| res.map_err(Error::Walkdir))
         .collect::<Result<Vec<_>>>()
         .map(|vec| {
             vec.into_iter()
@@ -226,11 +224,9 @@ fn get_images(database: tauri::State<Database>) -> Result<Vec<Image>> {
     let descriptors = database.get_indexed_images()?;
     let images = descriptors
         .into_iter()
-        .map(|desc| {
-            return Image {
-                id: desc.uuid,
-                path: desc.path,
-            };
+        .map(|desc| Image {
+            id: desc.uuid,
+            path: desc.path,
         })
         .collect();
 

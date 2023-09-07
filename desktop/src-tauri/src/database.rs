@@ -116,29 +116,6 @@ impl Database {
         debug!("Got {} files from index", descriptors.len());
         return Ok(descriptors);
     }
-    pub fn get_indexed_images_paged(&self, page: usize) -> Result<Vec<FileDesc>> {
-        let conn = self.get_connection()?;
-
-        let page_size = 20usize;
-        let offset = page * page_size;
-        let mut statement = conn.prepare(
-            "SELECT path, uuid, date, sha256 FROM file ORDER BY date DESC LIMIT (?1), (?2)",
-        )?;
-        let rows = statement.query_map([offset, page_size], |row| {
-            Ok(FileDesc {
-                path: row.get(0)?,
-                uuid: row.get(1)?,
-                date: row.get(2)?,
-                sha256: row.get(3)?,
-            })
-        })?;
-        let mut descriptors = Vec::new();
-        for row in rows {
-            descriptors.push(row?);
-        }
-        debug!("Got {} files from index", descriptors.len());
-        return Ok(descriptors);
-    }
 
     fn get_connection(&self) -> Result<MutexGuard<'_, Connection>> {
         return self

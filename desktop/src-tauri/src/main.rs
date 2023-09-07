@@ -238,36 +238,6 @@ fn get_images(database: tauri::State<Database>) -> Result<Vec<Image>> {
 }
 
 #[tauri::command]
-fn get_indexed_images_paged(
-    page: usize,
-    app_handle: AppHandle,
-    database: tauri::State<Database>,
-) -> Result<Vec<String>> {
-    debug!("Getting indexed files");
-    let descriptors = database.get_indexed_images_paged(page)?;
-
-    let thumbnails_dir = app_handle
-        .path_resolver()
-        .app_data_dir()
-        .ok_or(error::Error::Generic(
-            "Cannot get app data directory".to_owned(),
-        ))?;
-    let thumbnails_dir = thumbnails_dir.join("thumbnails");
-
-    let paths = descriptors
-        .iter()
-        .filter_map(|desc| {
-            thumbnails_dir
-                .join(&desc.uuid.to_string())
-                .to_str()
-                .map(|str| str.to_owned())
-        })
-        .collect();
-
-    return Ok(paths);
-}
-
-#[tauri::command]
 fn has_images_dirs(database: tauri::State<Database>) -> Result<bool> {
     debug!("Checking images dirs");
     return database.has_images_dirs();
@@ -280,7 +250,6 @@ fn main() {
             save_images_dirs,
             has_images_dirs,
             get_images,
-            get_indexed_images_paged,
         ])
         .register_uri_scheme_protocol("image", image_protocol_handler)
         .setup(|app| {

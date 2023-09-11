@@ -11,12 +11,27 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use sqlx::postgres::PgPoolOptions;
 use tower_http::limit::RequestBodyLimitLayer;
 
 use crate::config::Config;
 
 #[tokio::main]
 async fn main() {
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .connect("postgres://postgres:postgres@localhost:5432/photo_store_test")
+        .await
+        .unwrap();
+
+    let row: (i64,) = sqlx::query_as("SELECT $1")
+        .bind(150_i64)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+
+    println!("{:?}", row);
+
     let app = Router::new()
         .route("/", get(get_data))
         .route("/upload", post(upload).get(list_uploads))
@@ -42,7 +57,7 @@ async fn list_uploads() -> &'static str {
         .load()
         .await;
     let client = aws_sdk_s3::Client::new(&config);
-    
+
     let result = client
         .list_multipart_uploads()
         .bucket(&local_config.bucket_name)

@@ -1,14 +1,15 @@
-mod config;
-mod endpoints;
-
 use axum::{
     extract::{DefaultBodyLimit, Json, Path, State},
     routing::{get, post},
     Router,
 };
-use endpoints::{get_data, list_uploads, upload};
 use sqlx::postgres::PgPoolOptions;
 use tower_http::limit::RequestBodyLimitLayer;
+
+use endpoints::{get_data, list_uploads, upload};
+
+mod config;
+mod endpoints;
 
 #[derive(Clone)]
 struct AppState {
@@ -57,4 +58,19 @@ async fn file_meta_upload(
         .unwrap();
     let count = count.count.unwrap_or(0);
     println!("{}", count);
+
+    if count != 0 {
+        println!("File already exists");
+        return;
+    }
+
+    println!("Saving file");
+    let query = sqlx::query!(
+        "INSERT INTO file (uuid, name) VALUES ($1, $2)",
+        &file.uuid,
+        &file.name,
+    );
+
+    query.execute(&db).await.unwrap();
+
 }

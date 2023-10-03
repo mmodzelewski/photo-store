@@ -1,15 +1,16 @@
+use crate::error::Result;
 use axum::{
     extract::{DefaultBodyLimit, Json, Path, State},
     routing::{get, post},
     Router,
 };
+use endpoints::{get_data, list_uploads, upload};
 use sqlx::postgres::PgPoolOptions;
 use tower_http::limit::RequestBodyLimitLayer;
 
-use endpoints::{get_data, list_uploads, upload};
-
 mod config;
 mod endpoints;
+mod error;
 
 #[derive(Clone)]
 struct AppState {
@@ -17,12 +18,11 @@ struct AppState {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     let pool = PgPoolOptions::new()
         .max_connections(5)
         .connect("postgres://postgres:postgres@localhost:5432/photo_store_test")
-        .await
-        .unwrap();
+        .await?;
 
     let app = Router::new()
         .route("/", get(get_data))
@@ -31,10 +31,13 @@ async fn main() {
         .layer(DefaultBodyLimit::disable())
         .layer(RequestBodyLimitLayer::new(250 * 1024 * 1024))
         .with_state(AppState { db: pool });
+
     axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
         .serve(app.into_make_service())
         .await
         .unwrap();
+
+    Ok(())
 }
 
 #[derive(serde::Deserialize)]
@@ -47,21 +50,20 @@ async fn file_meta_upload(
     State(state): State<AppState>,
     Path(id): Path<String>,
     Json(file): Json<NewFile>,
-) {
+) -> Result<()> {
     println!("{}", id);
     println!("{}", file.name);
     println!("{}", file.uuid);
     let db = state.db;
     let count = sqlx::query!("SELECT count(1) FROM file WHERE uuid = $1", &file.uuid)
         .fetch_one(&db)
-        .await
-        .unwrap();
+        .await?;
     let count = count.count.unwrap_or(0);
     println!("{}", count);
 
     if count != 0 {
         println!("File already exists");
-        return;
+        return Ok(());
     }
 
     println!("Saving file");
@@ -71,6 +73,7 @@ async fn file_meta_upload(
         &file.name,
     );
 
-    query.execute(&db).await.unwrap();
+    query.execute(&db).await?;
 
+    Ok(())
 }

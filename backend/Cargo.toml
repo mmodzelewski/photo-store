@@ -6,13 +6,13 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.71"
-aws-config = "0.55.2"
-aws-sdk-s3 = "0.27.0"
-axum = { version = "0.6.18", features = ["multipart"] }
-serde = { version = "1.0.163", features = ["derive"] }
-sqlx = { version = "0.7.1", features = ["runtime-tokio", "tls-native-tls", "postgres", "uuid", "time", "migrate"] }
-tokio = { version = "1.28.1", features = ["full"] }
-toml = "0.7.3"
-tower-http = { version = "0.4.0", features = ["limit"] }
+anyhow = "1.0.75"
+aws-config = "0.56.1"
+aws-sdk-s3 = "0.31.2"
+axum = { version = "0.6.20", features = ["multipart"] }
+serde = { version = "1.0.188", features = ["derive"] }
+sqlx = { version = "0.7.2", features = ["runtime-tokio", "tls-native-tls", "postgres", "uuid", "time", "migrate"] }
+tokio = { version = "1.32.0", features = ["full"] }
+toml = "0.8.2"
+tower-http = { version = "0.4.4", features = ["limit"] }
 uuid = { version = "1.4.1", features = ["v4", "fast-rng", "serde"] }

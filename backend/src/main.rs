@@ -24,6 +24,8 @@ async fn main() -> Result<()> {
         .connect("postgres://postgres:postgres@localhost:5432/photo_store_test")
         .await?;
 
+    sqlx::migrate!("db/migrations").run(&pool).await.unwrap();
+
     let app = Router::new()
         .route("/", get(get_data))
         .route("/upload", post(upload).get(list_uploads))

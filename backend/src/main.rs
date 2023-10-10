@@ -8,7 +8,7 @@ use time::OffsetDateTime;
 use tower_http::limit::RequestBodyLimitLayer;
 
 use endpoints::{get_data, list_uploads, upload};
-use tracing::{debug, info};
+use tracing::info;
 use tracing_subscriber::EnvFilter;
 
 use crate::error::Result;
@@ -61,6 +61,14 @@ struct NewFile {
     sha256: String,
 }
 
+#[derive(sqlx::Type)]
+#[sqlx(type_name = "file_state")]
+enum FileState {
+    New,
+    SyncInProgress,
+    Synced,
+}
+
 async fn file_meta_upload(
     State(state): State<AppState>,
     Path(user_id): Path<String>,
@@ -85,15 +93,20 @@ async fn file_meta_upload(
 
     println!("Saving file");
     let query = sqlx::query!(
-        "INSERT INTO file (path, name, uuid, created_at, sha256) VALUES ($1, $2, $3, $4, $5)",
+        "INSERT INTO file (path, name, state, uuid, created_at, sha256) VALUES ($1, $2, $3, $4, $5, $6)",
         &file.path,
         &file.path,
+        FileState::New as _,
         &file.uuid,
         &file.date,
         &file.sha256
     );
 
-    query.execute(&db).await?;
+    let result = query.execute(&db).await;
+    if let Err(e) = result {
+        println!("Error: {}", e);
+        return Ok(());
+    }
 
     Ok(())
 }

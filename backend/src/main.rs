@@ -1,12 +1,15 @@
-use crate::error::Result;
 use axum::{
     extract::{DefaultBodyLimit, Json, Path, State},
-    routing::{get, post},
     Router,
+    routing::{get, post},
 };
-use endpoints::{get_data, list_uploads, upload};
 use sqlx::postgres::PgPoolOptions;
+use time::OffsetDateTime;
 use tower_http::limit::RequestBodyLimitLayer;
+
+use endpoints::{get_data, list_uploads, upload};
+
+use crate::error::Result;
 
 mod config;
 mod endpoints;
@@ -44,18 +47,23 @@ async fn main() -> Result<()> {
 
 #[derive(serde::Deserialize)]
 struct NewFile {
-    name: String,
+    path: String,
     uuid: uuid::Uuid,
+    #[serde(with = "time::serde::iso8601")]
+    date: OffsetDateTime,
+    sha256: String,
 }
 
 async fn file_meta_upload(
     State(state): State<AppState>,
-    Path(id): Path<String>,
+    Path(user_id): Path<String>,
     Json(file): Json<NewFile>,
 ) -> Result<()> {
-    println!("{}", id);
-    println!("{}", file.name);
+    println!("{}", user_id);
+    println!("{}", file.path);
     println!("{}", file.uuid);
+    println!("{}", file.date);
+
     let db = state.db;
     let count = sqlx::query!("SELECT count(1) FROM file WHERE uuid = $1", &file.uuid)
         .fetch_one(&db)
@@ -70,9 +78,12 @@ async fn file_meta_upload(
 
     println!("Saving file");
     let query = sqlx::query!(
-        "INSERT INTO file (uuid, name) VALUES ($1, $2)",
+        "INSERT INTO file (path, name, uuid, created_at, sha256) VALUES ($1, $2, $3, $4, $5)",
+        &file.path,
+        &file.path,
         &file.uuid,
-        &file.name,
+        &file.date,
+        &file.sha256
     );
 
     query.execute(&db).await?;

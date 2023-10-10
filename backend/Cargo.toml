@@ -12,7 +12,12 @@ aws-sdk-s3 = "0.31.2"
 axum = { version = "0.6.20", features = ["multipart"] }
 serde = { version = "1.0.188", features = ["derive"] }
 sqlx = { version = "0.7.2", features = ["runtime-tokio", "tls-native-tls", "postgres", "uuid", "time", "migrate"] }
+time = { version = "0.3.29", features = ["parsing", "serde"] }
 tokio = { version = "1.32.0", features = ["full"] }
 toml = "0.8.2"
 tower-http = { version = "0.4.4", features = ["limit"] }
 uuid = { version = "1.4.1", features = ["v4", "fast-rng", "serde"] }
+
+[dev-dependencies]
+anyhow = "1.0.75"
+reqwest = "0.11.22"

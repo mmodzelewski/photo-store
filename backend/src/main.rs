@@ -1,13 +1,15 @@
 use axum::{
     extract::{DefaultBodyLimit, Json, Path, State},
-    Router,
     routing::{get, post},
+    Router,
 };
 use sqlx::postgres::PgPoolOptions;
 use time::OffsetDateTime;
 use tower_http::limit::RequestBodyLimitLayer;
 
 use endpoints::{get_data, list_uploads, upload};
+use tracing::{debug, info};
+use tracing_subscriber::EnvFilter;
 
 use crate::error::Result;
 
@@ -22,6 +24,10 @@ struct AppState {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_default_env())
+        .init();
+
     let pool = PgPoolOptions::new()
         .max_connections(5)
         .connect("postgres://postgres:postgres@localhost:5432/photo_store_test")
@@ -37,6 +43,7 @@ async fn main() -> Result<()> {
         .layer(RequestBodyLimitLayer::new(250 * 1024 * 1024))
         .with_state(AppState { db: pool });
 
+    info!("Listening on localhost:3000");
     axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
         .serve(app.into_make_service())
         .await

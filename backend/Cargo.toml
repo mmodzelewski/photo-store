@@ -16,6 +16,8 @@ time = { version = "0.3.29", features = ["parsing", "serde"] }
 tokio = { version = "1.32.0", features = ["full"] }
 toml = "0.8.2"
 tower-http = { version = "0.4.4", features = ["limit"] }
+tracing = "0.1.37"
+tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 uuid = { version = "1.4.1", features = ["v4", "fast-rng", "serde"] }
 
 [dev-dependencies]

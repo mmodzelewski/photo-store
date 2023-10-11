@@ -1,17 +1,16 @@
 use axum::{
-    extract::{DefaultBodyLimit, Json, Path, State},
+    extract::{DefaultBodyLimit, Json, Multipart, Path, State},
     routing::{get, post},
     Router,
 };
 use sqlx::postgres::PgPoolOptions;
 use time::OffsetDateTime;
 use tower_http::limit::RequestBodyLimitLayer;
-
-use endpoints::{get_data, list_uploads, upload};
-use tracing::info;
+use tracing::{debug, info};
 use tracing_subscriber::EnvFilter;
 
 use crate::error::Result;
+use endpoints::{get_data, list_uploads, upload};
 
 mod config;
 mod endpoints;
@@ -39,6 +38,7 @@ async fn main() -> Result<()> {
         .route("/", get(get_data))
         .route("/upload", post(upload).get(list_uploads))
         .route("/u/:id/files", post(file_meta_upload))
+        .route("/u/:id/files/data", post(upload_file))
         .layer(DefaultBodyLimit::disable())
         .layer(RequestBodyLimitLayer::new(250 * 1024 * 1024))
         .with_state(AppState { db: pool });
@@ -108,5 +108,18 @@ async fn file_meta_upload(
         return Ok(());
     }
 
+    Ok(())
+}
+
+async fn upload_file(mut multipart: Multipart) -> Result<()> {
+    while let Some(field) = multipart.next_field().await? {
+        debug!("got field: {:?}", field.name());
+        if Some("file") == field.name() {
+            debug!("file content type: {:?}", field.content_type());
+            debug!("file file name: {:?}", field.file_name());
+            debug!("file headers: {:?}", field.headers());
+            let _ = field.bytes().await?;
+        }
+    }
     Ok(())
 }

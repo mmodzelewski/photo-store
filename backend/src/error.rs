@@ -1,12 +1,16 @@
 use std::fmt::Display;
 
-use axum::response::{IntoResponse, Response};
+use axum::{
+    extract::multipart::MultipartError,
+    response::{IntoResponse, Response},
+};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
 pub enum Error {
     Generic,
+    MultipartError(MultipartError),
 }
 
 impl Display for Error {
@@ -18,6 +22,12 @@ impl Display for Error {
 impl From<sqlx::Error> for Error {
     fn from(_: sqlx::Error) -> Self {
         Error::Generic
+    }
+}
+
+impl From<MultipartError> for Error {
+    fn from(value: MultipartError) -> Self {
+        Error::MultipartError(value)
     }
 }
 

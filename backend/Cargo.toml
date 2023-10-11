@@ -12,6 +12,7 @@ aws-sdk-s3 = "0.31.2"
 axum = { version = "0.6.20", features = ["multipart"] }
 serde = { version = "1.0.188", features = ["derive"] }
 sqlx = { version = "0.7.2", features = ["runtime-tokio", "tls-native-tls", "postgres", "uuid", "time", "migrate"] }
+thiserror = "1.0.49"
 time = { version = "0.3.29", features = ["parsing", "serde"] }
 tokio = { version = "1.32.0", features = ["full"] }
 toml = "0.8.2"

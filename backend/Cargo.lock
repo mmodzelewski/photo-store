@@ -525,6 +525,7 @@ dependencies = [
  "reqwest",
  "serde",
  "sqlx",
+ "thiserror",
  "time",
  "tokio",
  "toml",

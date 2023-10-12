@@ -2,7 +2,6 @@ use time::OffsetDateTime;
 use uuid::Uuid;
 
 pub mod repository;
-mod error;
 
 pub type FileId = Uuid;
 

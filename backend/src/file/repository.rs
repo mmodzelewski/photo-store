@@ -1,8 +1,8 @@
 use uuid::Uuid;
 
 use crate::database::DbPool;
+use crate::error::Result;
 
-use super::error::Result;
 use super::FileState;
 
 pub(crate) struct FileRepository;

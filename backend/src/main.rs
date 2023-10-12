@@ -61,7 +61,7 @@ async fn file_meta_upload(
     println!("{}", file.date);
 
     let db = state.db;
-    let exists = file::repository::FileRepository::exists(&db, &file.uuid).await.unwrap();
+    let exists = file::repository::FileRepository::exists(&db, &file.uuid).await?;
 
     if exists {
         println!("File already exists");
@@ -69,7 +69,7 @@ async fn file_meta_upload(
     }
 
     println!("Saving file");
-    file::repository::FileRepository::save(&db, &file).await.unwrap();
+    file::repository::FileRepository::save(&db, &file).await?;
 
     Ok(())
 }

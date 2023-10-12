@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use axum::{
     extract::multipart::MultipartError,
     response::{IntoResponse, Response},
@@ -7,28 +5,14 @@ use axum::{
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
-    Generic,
-    MultipartError(MultipartError),
-}
-
-impl Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{self:?}")
-    }
-}
-
-impl From<sqlx::Error> for Error {
-    fn from(_: sqlx::Error) -> Self {
-        Error::Generic
-    }
-}
-
-impl From<MultipartError> for Error {
-    fn from(value: MultipartError) -> Self {
-        Error::MultipartError(value)
-    }
+    #[error("Multipart error: {0}")]
+    MultipartError(#[from] MultipartError),
+    #[error("Sql error: {0}")]
+    SqlError(#[from] sqlx::Error),
+    #[error("Database migration error: {0}")]
+    DbMigrationError(#[from] sqlx::migrate::MigrateError),
 }
 
 impl IntoResponse for Error {
@@ -43,4 +27,3 @@ impl IntoResponse for Error {
     }
 }
 
-impl std::error::Error for Error {}

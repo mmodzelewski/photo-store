@@ -5,6 +5,7 @@ use axum::extract::Multipart;
 
 use crate::config::Config;
 
+#[allow(dead_code)]
 pub(crate) async fn list_uploads() -> &'static str {
     let local_config = Config::load().await;
     if local_config.is_err() {
@@ -42,6 +43,7 @@ pub(crate) async fn list_uploads() -> &'static str {
     return "hello data";
 }
 
+#[allow(dead_code)]
 pub(crate) async fn upload(mut multipart: Multipart) {
     let local_config = Config::load().await;
     if local_config.is_err() {
@@ -121,6 +123,7 @@ pub(crate) async fn upload(mut multipart: Multipart) {
     dbg!(complete);
 }
 
+#[allow(dead_code)]
 pub(crate) async fn get_data() -> &'static str {
     let local_config = Config::load().await;
     if local_config.is_err() {

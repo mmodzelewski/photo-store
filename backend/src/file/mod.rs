@@ -1,9 +1,7 @@
 use time::OffsetDateTime;
-use uuid::Uuid;
 
 pub mod repository;
-
-pub type FileId = Uuid;
+pub mod routes;
 
 #[derive(serde::Deserialize)]
 pub struct NewFile {

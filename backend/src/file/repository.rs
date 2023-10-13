@@ -5,10 +5,14 @@ use crate::error::Result;
 
 use super::FileState;
 
-pub(crate) struct FileRepository;
+pub(super) struct FileRepository;
+
+struct StateRow {
+    state: FileState,
+}
 
 impl FileRepository {
-    pub(crate) async fn exists(db: &DbPool, uuid: &Uuid) -> Result<bool> {
+    pub(super) async fn exists(db: &DbPool, uuid: &Uuid) -> Result<bool> {
         let count = sqlx::query!("SELECT count(1) FROM file WHERE uuid = $1", uuid)
             .fetch_one(db)
             .await?;
@@ -16,7 +20,19 @@ impl FileRepository {
         Ok(res)
     }
 
-    pub(crate) async fn save(db: &DbPool, file: &super::NewFile) -> Result<()> {
+    pub(super) async fn get_state(db: &DbPool, uuid: &Uuid) -> Result<Option<FileState>> {
+        let state = sqlx::query_as!(
+            StateRow,
+            r#"SELECT state as "state: _" FROM file WHERE uuid = $1"#,
+            uuid
+        )
+        .fetch_optional(db)
+        .await?;
+
+        Ok(state.map(|s| s.state))
+    }
+
+    pub(super) async fn save(db: &DbPool, file: &super::NewFile) -> Result<()> {
         let query = sqlx::query!(
             r#"INSERT INTO file (
                 path, name, state, uuid, created_at, sha256
@@ -27,6 +43,18 @@ impl FileRepository {
             file.uuid,
             file.date,
             file.sha256
+        );
+
+        query.execute(db).await?;
+
+        Ok(())
+    }
+
+    pub(super) async fn update_state(db: &DbPool, file_id: &Uuid, state: FileState) -> Result<()> {
+        let query = sqlx::query!(
+            "UPDATE file SET state = $1 WHERE uuid = $2",
+            state as _,
+            file_id
         );
 
         query.execute(db).await?;

@@ -12,7 +12,7 @@ pub struct NewFile {
     pub sha256: String,
 }
 
-#[derive(sqlx::Type)]
+#[derive(Debug, sqlx::Type)]
 #[sqlx(type_name = "file_state")]
 pub enum FileState {
     New,

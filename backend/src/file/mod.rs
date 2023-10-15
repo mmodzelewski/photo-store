@@ -1,7 +1,8 @@
 use time::OffsetDateTime;
 
-pub mod repository;
+mod repository;
 pub mod routes;
+mod handlers;
 
 #[derive(serde::Deserialize)]
 pub struct NewFile {

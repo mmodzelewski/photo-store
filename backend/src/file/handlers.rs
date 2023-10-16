@@ -2,12 +2,21 @@ use axum::{
     extract::{Multipart, Path, State},
     Json,
 };
+use time::OffsetDateTime;
 use tracing::debug;
 use uuid::Uuid;
 
+use super::repository::FileRepository;
 use crate::{error::Result, file::FileState, AppState};
 
-use super::{repository::FileRepository, NewFile};
+#[derive(Debug, serde::Deserialize)]
+pub(super) struct NewFile {
+    pub path: String,
+    pub uuid: uuid::Uuid,
+    #[serde(with = "time::serde::iso8601")]
+    pub date: OffsetDateTime,
+    pub sha256: String,
+}
 
 pub(super) async fn file_meta_upload(
     State(state): State<AppState>,
@@ -15,9 +24,7 @@ pub(super) async fn file_meta_upload(
     Json(file): Json<NewFile>,
 ) -> Result<()> {
     debug!("{}", user_id);
-    debug!("{}", file.path);
-    debug!("{}", file.uuid);
-    debug!("{}", file.date);
+    debug!("{:?}", &file);
 
     let db = state.db;
     let exists = FileRepository::exists(&db, &file.uuid).await?;

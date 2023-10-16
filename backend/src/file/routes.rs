@@ -5,7 +5,7 @@ use crate::AppState;
 
 use super::handlers;
 
-pub fn routes(app_state: AppState) -> Router {
+pub(crate) fn routes(app_state: AppState) -> Router {
     Router::new()
         .route("/u/:id/files", post(handlers::file_meta_upload))
         .route(

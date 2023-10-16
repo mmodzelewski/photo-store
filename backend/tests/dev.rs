@@ -15,6 +15,7 @@ async fn dev() -> Result<()> {
     let response = client
         .post(format!("http://localhost:3000/u/{user_id}/files"))
         .header("Content-Type", "application/json")
+        .header("Authorization", "test-token")
         .body(format!(
             r#"{{
             "path": "test-path",
@@ -33,6 +34,7 @@ async fn dev() -> Result<()> {
             .post(format!(
                 "http://localhost:3000/u/{user_id}/files/{file_id}/data"
             ))
+            .header("Authorization", "test-token")
             .multipart(
                 Form::new()
                     .text("uuid", "8f664c5d-8751-4b8d-bd07-0b115e97f24a")

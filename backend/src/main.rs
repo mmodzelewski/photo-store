@@ -10,6 +10,8 @@ mod database;
 mod endpoints;
 mod error;
 mod file;
+mod middleware;
+mod ctx;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -24,7 +26,10 @@ async fn main() -> Result<()> {
 
     let pool = database::init_db().await?;
 
-    let app = Router::new().merge(file::routes::routes(AppState { db: pool }));
+    let file_routes = file::routes::routes(AppState { db: pool })
+        .route_layer(axum::middleware::from_fn(middleware::require_auth));
+
+    let app = Router::new().merge(file_routes);
 
     info!("Listening on localhost:3000");
     axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())

@@ -13,6 +13,8 @@ pub enum Error {
     SqlError(#[from] sqlx::Error),
     #[error("Database migration error: {0}")]
     DbMigrationError(#[from] sqlx::migrate::MigrateError),
+    #[error("Auth error")]
+    AuthError,
 }
 
 impl IntoResponse for Error {

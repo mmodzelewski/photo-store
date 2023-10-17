@@ -12,7 +12,7 @@ use crate::{
     error::{Error, Result},
 };
 
-pub async fn require_auth<B>(
+pub(crate) async fn require_auth<B>(
     ctx: Result<Ctx>,
     request: Request<B>,
     next: Next<B>,

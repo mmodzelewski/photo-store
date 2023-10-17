@@ -1,6 +1,9 @@
 use std::path::Path;
 
-use aws_sdk_s3::{types::{CompletedPart, CompletedMultipartUpload}, primitives::ByteStream};
+use aws_sdk_s3::{
+    primitives::ByteStream,
+    types::{CompletedMultipartUpload, CompletedPart},
+};
 use axum::extract::Multipart;
 
 use crate::config::Config;

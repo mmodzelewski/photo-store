@@ -28,4 +28,3 @@ impl IntoResponse for Error {
             .into_response()
     }
 }
-

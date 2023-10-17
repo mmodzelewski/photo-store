@@ -54,3 +54,32 @@ async fn dev() -> Result<()> {
 
     Ok(())
 }
+
+#[tokio::test]
+async fn dev_user() -> Result<()> {
+    let client = reqwest::Client::new();
+    let response = client
+        .post("http://localhost:3000/user")
+        .header("Content-Type", "application/json")
+        .body(r#"{"username": "test", "password": "test"}"#)
+        .send()
+        .await?;
+
+    println!("Response: {:?}", response);
+    println!("Response status: {:?}", response.status());
+    println!("Response body: {:?}", response.text().await?);
+
+    let client = reqwest::Client::new();
+    let response = client
+        .post("http://localhost:3000/login")
+        .header("Content-Type", "application/json")
+        .body(r#"{"username": "test", "password": "test"}"#)
+        .send()
+        .await?;
+
+    println!("Response: {:?}", response);
+    println!("Response status: {:?}", response.status());
+    println!("Response body: {:?}", response.text().await?);
+
+    Ok(())
+}

@@ -55,31 +55,51 @@ async fn dev() -> Result<()> {
     Ok(())
 }
 
+#[derive(serde::Deserialize, Debug)]
+struct UserResponse {
+    user_id: String,
+}
+
+#[derive(serde::Deserialize, Debug)]
+struct LoginResponse {
+    auth_token: String,
+}
+
 #[tokio::test]
 async fn dev_user() -> Result<()> {
     let client = reqwest::Client::new();
+    let uuid = Uuid::new_v4().to_string();
+    let username = "test-user".to_string() + uuid.as_str();
+    println!("username: {}", username);
+
     let response = client
         .post("http://localhost:3000/user")
         .header("Content-Type", "application/json")
-        .body(r#"{"username": "test", "password": "test"}"#)
+        .body(format!(
+            r#"{{"username": "{username}", "password": "test"}}"#
+        ))
         .send()
         .await?;
 
     println!("Response: {:?}", response);
     println!("Response status: {:?}", response.status());
-    println!("Response body: {:?}", response.text().await?);
+    let user_response = response.json::<UserResponse>().await?;
+    println!("Response body: {:?}", user_response);
 
     let client = reqwest::Client::new();
     let response = client
         .post("http://localhost:3000/login")
         .header("Content-Type", "application/json")
-        .body(r#"{"username": "test", "password": "test"}"#)
+        .body(format!(
+            r#"{{"username": "{username}", "password": "test"}}"#
+        ))
         .send()
         .await?;
 
     println!("Response: {:?}", response);
     println!("Response status: {:?}", response.status());
-    println!("Response body: {:?}", response.text().await?);
+    let login_response = response.json::<LoginResponse>().await?;
+    println!("Response body: {:?}", login_response);
 
     Ok(())
 }

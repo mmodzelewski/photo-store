@@ -1,4 +1,5 @@
 use axum::{extract::State, Json};
+use uuid::Uuid;
 
 use crate::{error::Result, AppState};
 
@@ -21,9 +22,10 @@ pub(super) async fn register(
 ) -> Result<Json<UserRegisterResponse>> {
     let db = state.db;
 
-    repository::save(&db, &user).await?;
+    let user_id = Uuid::new_v4();
+    repository::save(&db, &user_id, &user).await?;
 
     return Ok(Json(UserRegisterResponse {
-        user_id: "123".to_string(),
+        user_id: user_id.to_string(),
     }));
 }

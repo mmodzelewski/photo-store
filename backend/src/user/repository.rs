@@ -1,12 +1,19 @@
+use uuid::Uuid;
+
 use crate::{database::DbPool, error::Result};
 
-pub(super) async fn save(db: &DbPool, file: &super::handlers::UserRegister) -> Result<()> {
+pub(super) async fn save(
+    db: &DbPool,
+    user_id: &Uuid,
+    user: &super::handlers::UserRegister,
+) -> Result<()> {
     let query = sqlx::query!(
         r#"INSERT INTO app_user (
-                username, password
-            ) VALUES ($1, $2)"#,
-        file.username,
-        file.password,
+                uuid, username, password
+            ) VALUES ($1, $2, $3)"#,
+        user_id,
+        user.username,
+        user.password,
     );
 
     query.execute(db).await?;

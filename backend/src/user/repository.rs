@@ -20,3 +20,19 @@ pub(super) async fn save(
 
     Ok(())
 }
+
+pub(super) async fn get_by_username(db: &DbPool, username: &str) -> Result<User> {
+    let query = sqlx::query_as!(
+        User,
+        r#"SELECT uuid, username, password FROM app_user where username = $1"#,
+        username
+    );
+    let user = query.fetch_one(db).await?;
+    Ok(user)
+}
+
+pub(super) struct User {
+    pub uuid: Uuid,
+    pub username: String,
+    pub password: String,
+}

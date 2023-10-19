@@ -1,7 +1,7 @@
 use axum::{extract::State, routing::post, Json, Router};
 use uuid::Uuid;
 
-use crate::{error::Result, AppState};
+use crate::{error::Result, user::verify_user_password, AppState};
 
 pub(crate) fn routes(app_state: AppState) -> Router {
     Router::new()
@@ -22,12 +22,12 @@ pub(super) struct AuthTokenResponse {
 
 pub(super) async fn login(
     State(_state): State<AppState>,
-    Json(_user): Json<UserLogin>,
+    Json(user): Json<UserLogin>,
 ) -> Result<Json<AuthTokenResponse>> {
-    // todo: check user
+    verify_user_password(&_state.db, &user.username, &user.password).await?;
+
+    let auth_token = Uuid::new_v4();
     // todo: save auth token
 
-    return Ok(Json(AuthTokenResponse {
-        auth_token: Uuid::new_v4(),
-    }));
+    return Ok(Json(AuthTokenResponse { auth_token }));
 }

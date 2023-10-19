@@ -1,12 +1,13 @@
 use argon2::{
     password_hash::{rand_core::OsRng, SaltString},
-    Argon2, PasswordHasher,
+    Argon2, PasswordHash, PasswordHasher, PasswordVerifier,
 };
 use axum::{extract::State, Json};
 use tracing::debug;
 use uuid::Uuid;
 
 use crate::{
+    database::DbPool,
     error::{Error, Result},
     AppState,
 };
@@ -56,4 +57,24 @@ fn hash_password(password: &str) -> Result<String> {
         .hash_password(password.as_bytes(), &salt)
         .map_err(|e| Error::PasswordHashingError(e.to_string()))?;
     Ok(hash.to_string())
+}
+
+pub(crate) async fn verify_user_password(
+    db: &DbPool,
+    username: &str,
+    password: &str,
+) -> Result<()> {
+    let user = repository::get_by_username(db, username).await?;
+    verify_password(password, &user.password)?;
+    Ok(())
+}
+
+fn verify_password(password: &str, hash: &str) -> Result<()> {
+    let argon2 = Argon2::default();
+    let parsed_hash = PasswordHash::new(hash).unwrap();
+
+    argon2
+        .verify_password(password.as_bytes(), &parsed_hash)
+        .map_err(|e| Error::PasswordHashingError(e.to_string()))?;
+    Ok(())
 }

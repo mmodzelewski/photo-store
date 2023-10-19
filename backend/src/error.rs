@@ -15,6 +15,8 @@ pub enum Error {
     DbMigrationError(#[from] sqlx::migrate::MigrateError),
     #[error("Auth error")]
     AuthError,
+    #[error("Password hashing error: {0}")]
+    PasswordHashingError(String),
 }
 
 impl IntoResponse for Error {

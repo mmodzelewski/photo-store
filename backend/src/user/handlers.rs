@@ -63,10 +63,10 @@ pub(crate) async fn verify_user_password(
     db: &DbPool,
     username: &str,
     password: &str,
-) -> Result<()> {
+) -> Result<Uuid> {
     let user = repository::get_by_username(db, username).await?;
     verify_password(password, &user.password)?;
-    Ok(())
+    Ok(user.uuid)
 }
 
 fn verify_password(password: &str, hash: &str) -> Result<()> {

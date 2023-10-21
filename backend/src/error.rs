@@ -13,8 +13,8 @@ pub enum Error {
     SqlError(#[from] sqlx::Error),
     #[error("Database migration error: {0}")]
     DbMigrationError(#[from] sqlx::migrate::MigrateError),
-    #[error("Auth error")]
-    AuthError,
+    #[error("Auth error {0}")]
+    AuthError(#[from] crate::auth::error::Error),
     #[error("Password hashing error: {0}")]
     PasswordHashingError(String),
 }

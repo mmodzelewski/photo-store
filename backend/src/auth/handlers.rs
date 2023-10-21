@@ -28,3 +28,7 @@ pub(super) async fn login(
 
     return Ok(Json(AuthTokenResponse { auth_token }));
 }
+
+pub(super) async fn verify_token(token: &str) -> Result<Uuid> {
+    todo!()
+}

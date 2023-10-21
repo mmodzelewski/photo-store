@@ -29,7 +29,14 @@ async fn main() -> Result<()> {
     let state = AppState { db: pool };
 
     let file_routes = file::routes::routes(state.clone())
-        .route_layer(axum::middleware::from_fn(auth::middleware::require_auth));
+        .route_layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            auth::middleware::require_auth,
+        ))
+        .route_layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            auth::middleware::ctx_resolver,
+        ));
 
     let app = Router::new()
         .merge(file_routes)

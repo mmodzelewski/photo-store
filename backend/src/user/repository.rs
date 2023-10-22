@@ -1,6 +1,9 @@
 use uuid::Uuid;
 
-use crate::{database::DbPool, error::Result};
+use crate::{
+    database::DbPool,
+    error::{Error, Result},
+};
 
 pub(super) async fn save(
     db: &DbPool,
@@ -16,7 +19,10 @@ pub(super) async fn save(
         user.password,
     );
 
-    query.execute(db).await?;
+    query
+        .execute(db)
+        .await
+        .map_err(|e| Error::DbError(format!("Could not save user {}", e)))?;
 
     Ok(())
 }
@@ -27,7 +33,10 @@ pub(super) async fn get_by_username(db: &DbPool, username: &str) -> Result<User>
         r#"SELECT uuid, username, password FROM app_user where username = $1"#,
         username
     );
-    let user = query.fetch_one(db).await?;
+    let user = query
+        .fetch_one(db)
+        .await
+        .map_err(|e| Error::DbError(format!("Could not get user {}", e)))?;
     Ok(user)
 }
 

@@ -8,9 +8,12 @@ pub async fn init_db() -> Result<DbPool> {
     let pool = PgPoolOptions::new()
         .max_connections(5)
         .connect("postgres://postgres:postgres@localhost:5432/photo_store_test")
-        .await?;
+        .await
+        .map_err(|e| crate::error::Error::DbError(format!("Could not connect to db {}", e)))?;
 
-    migrate!("db/migrations").run(&pool).await?;
+    migrate!("db/migrations").run(&pool).await.map_err(|e| {
+        crate::error::Error::DbMigrationError(format!("Could not run migrations {}", e))
+    })?;
 
     Ok(pool)
 }

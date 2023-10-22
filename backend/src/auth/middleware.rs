@@ -7,8 +7,9 @@ use axum::{
 use tracing::debug;
 use uuid::Uuid;
 
-use super::error::Error;
-use super::error::Result;
+use super::error::Error as AuthError;
+use crate::error::Error;
+use crate::error::Result;
 use crate::{ctx::Ctx, AppState};
 
 pub(crate) async fn require_auth<B>(
@@ -34,7 +35,7 @@ pub(crate) async fn ctx_resolver<B>(
     let _auth_token = request
         .headers()
         .get("Authorization")
-        .ok_or(Error::MissingAuthHeader)?;
+        .ok_or(AuthError::MissingAuthHeader)?;
 
     // super::handlers::verify_token("").await?;
     // todo: validate auth token
@@ -56,7 +57,7 @@ impl<S: Send + Sync> FromRequestParts<S> for Ctx {
         parts
             .extensions
             .get::<Result<Ctx>>()
-            .ok_or(Error::MissingAuthContext)?
+            .ok_or::<Error>(AuthError::MissingAuthContext.into())?
             .clone()
     }
 }

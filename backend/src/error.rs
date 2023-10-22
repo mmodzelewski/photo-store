@@ -1,18 +1,18 @@
 use axum::{
-    extract::multipart::MultipartError,
+    http::StatusCode,
     response::{IntoResponse, Response},
 };
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, thiserror::Error)]
 pub enum Error {
-    #[error("Multipart error: {0}")]
-    MultipartError(#[from] MultipartError),
-    #[error("Sql error: {0}")]
-    SqlError(#[from] sqlx::Error),
+    #[error("File upload error: {0}")]
+    FileUploadError(String),
+    #[error("Database error: {0}")]
+    DbError(String),
     #[error("Database migration error: {0}")]
-    DbMigrationError(#[from] sqlx::migrate::MigrateError),
+    DbMigrationError(String),
     #[error("Auth error {0}")]
     AuthError(#[from] crate::auth::error::Error),
     #[error("Password hashing error: {0}")]
@@ -23,10 +23,10 @@ impl IntoResponse for Error {
     fn into_response(self) -> Response {
         println!("{:?}", self);
 
-        (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            "Internal Server Error",
-        )
-            .into_response()
+        if let Error::AuthError(_) = self {
+            return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response();
+        }
+
+        (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error").into_response()
     }
 }

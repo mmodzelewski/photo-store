@@ -15,7 +15,10 @@ impl FileRepository {
     pub(super) async fn exists(db: &DbPool, uuid: &Uuid) -> Result<bool> {
         let count = sqlx::query!("SELECT count(1) FROM file WHERE uuid = $1", uuid)
             .fetch_one(db)
-            .await?;
+            .await
+            .map_err(|e| {
+                crate::error::Error::DbError(format!("Could not check if file exists {}", e))
+            })?;
         let res = count.count.map(|c| c > 0).unwrap_or(false);
         Ok(res)
     }
@@ -27,7 +30,8 @@ impl FileRepository {
             uuid
         )
         .fetch_optional(db)
-        .await?;
+        .await
+        .map_err(|e| crate::error::Error::DbError(format!("Could not get file state {}", e)))?;
 
         Ok(state.map(|s| s.state))
     }
@@ -45,7 +49,10 @@ impl FileRepository {
             file.sha256
         );
 
-        query.execute(db).await?;
+        query
+            .execute(db)
+            .await
+            .map_err(|e| crate::error::Error::DbError(format!("Could not save file {}", e)))?;
 
         Ok(())
     }
@@ -57,7 +64,9 @@ impl FileRepository {
             file_id
         );
 
-        query.execute(db).await?;
+        query.execute(db).await.map_err(|e| {
+            crate::error::Error::DbError(format!("Could not update file state {}", e))
+        })?;
 
         Ok(())
     }

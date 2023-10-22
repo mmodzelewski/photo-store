@@ -6,11 +6,7 @@ use crate::error::Result;
 pub(super) struct AuthRepository;
 
 impl AuthRepository {
-    pub async fn save_auth_token(
-        db: &DbPool,
-        user_id: &Uuid,
-        auth_token: &str,
-    ) -> Result<()> {
+    pub async fn save_auth_token(db: &DbPool, user_id: &Uuid, auth_token: &str) -> Result<()> {
         let query = sqlx::query!(
             r#"INSERT INTO auth_token (
                 user_id, token
@@ -19,7 +15,9 @@ impl AuthRepository {
             auth_token,
         );
 
-        query.execute(db).await?;
+        query.execute(db).await.map_err(|e| {
+            crate::error::Error::DbError(format!("Could not save auth token {}", e))
+        })?;
 
         Ok(())
     }

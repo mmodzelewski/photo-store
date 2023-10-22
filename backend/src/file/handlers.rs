@@ -7,7 +7,11 @@ use tracing::debug;
 use uuid::Uuid;
 
 use super::repository::FileRepository;
-use crate::{error::Result, file::FileState, AppState};
+use crate::{
+    error::{Error, Result},
+    file::FileState,
+    AppState,
+};
 
 #[derive(Debug, serde::Deserialize)]
 pub(super) struct NewFile {
@@ -56,13 +60,17 @@ pub(super) async fn upload_file(
     return if let Some(FileState::New) = state {
         FileRepository::update_state(&db, &file_id, FileState::SyncInProgress).await?;
 
-        while let Some(field) = multipart.next_field().await? {
+        while let Some(field) = multipart.next_field().await.map_err(|e| {
+            Error::FileUploadError(format!("Failed while getting next multipart field {}", e))
+        })? {
             debug!("got field: {:?}", field.name());
             if Some("file") == field.name() {
                 debug!("file content type: {:?}", field.content_type());
                 debug!("file file name: {:?}", field.file_name());
                 debug!("file headers: {:?}", field.headers());
-                let _ = field.bytes().await?;
+                let _ = field.bytes().await.map_err(|e| {
+                    Error::FileUploadError(format!("Could not read field bytes {}", e))
+                })?;
             }
         }
         Ok(())

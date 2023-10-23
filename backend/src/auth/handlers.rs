@@ -1,9 +1,9 @@
 use axum::{extract::State, Json};
 use uuid::Uuid;
 
-use crate::{error::Result, user::verify_user_password, AppState};
+use crate::{database::DbPool, error::Result, user::verify_user_password, AppState};
 
-use super::repository::AuthRepository;
+use super::{error::Error, repository::AuthRepository};
 
 #[derive(serde::Deserialize)]
 pub(super) struct UserLogin {
@@ -29,6 +29,8 @@ pub(super) async fn login(
     return Ok(Json(AuthTokenResponse { auth_token }));
 }
 
-pub(super) async fn verify_token(token: &str) -> Result<Uuid> {
-    todo!()
+pub(super) async fn verify_token(db: &DbPool, token: &str) -> Result<Uuid> {
+    AuthRepository::get_by_token(db, token)
+        .await
+        .map_err(|_| Error::InvalidAuthToken.into())
 }

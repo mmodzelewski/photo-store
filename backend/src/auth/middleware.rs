@@ -5,12 +5,13 @@ use axum::{
     response::Response,
 };
 use tracing::debug;
-use uuid::Uuid;
 
 use super::error::Error as AuthError;
-use crate::error::Error;
-use crate::error::Result;
-use crate::{ctx::Ctx, AppState};
+use crate::{
+    ctx::Ctx,
+    error::{Error, Result},
+    AppState,
+};
 
 pub(crate) async fn require_auth<B>(
     ctx: Result<Ctx>,
@@ -26,22 +27,29 @@ pub(crate) async fn require_auth<B>(
 }
 
 pub(crate) async fn ctx_resolver<B>(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     mut request: Request<B>,
     next: Next<B>,
 ) -> Result<Response> {
     debug!("ctx_resolver middleware");
 
-    let _auth_token = request
+    let auth_token = request
         .headers()
         .get("Authorization")
-        .ok_or(AuthError::MissingAuthHeader)?;
+        .ok_or(AuthError::MissingAuthHeader)
+        .and_then(|auth_token| {
+            auth_token
+                .to_str()
+                .map_err(|_| AuthError::InvalidAuthHeader)
+        });
 
-    // super::handlers::verify_token("").await?;
-    // todo: validate auth token
-    // todo: get user id
+    let db = state.db;
+    let user_id = match auth_token {
+        Ok(auth_token) => super::handlers::verify_token(&db, auth_token).await,
+        Err(e) => Err(Error::AuthError(e)),
+    };
 
-    let result_ctx = Ok::<_, Error>(Ctx::new(Uuid::new_v4()));
+    let result_ctx = user_id.map(|user_id| Ctx::new(user_id));
 
     request.extensions_mut().insert(result_ctx);
 

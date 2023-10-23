@@ -5,7 +5,7 @@ use reqwest::multipart::{Form, Part};
 use uuid::Uuid;
 
 #[tokio::test]
-async fn dev() -> Result<()> {
+async fn dev_upload() -> Result<()> {
     let client = reqwest::Client::new();
     let user_id = Uuid::new_v4().to_string();
     println!("user_id: {}", user_id);
@@ -15,7 +15,7 @@ async fn dev() -> Result<()> {
     let response = client
         .post(format!("http://localhost:3000/u/{user_id}/files"))
         .header("Content-Type", "application/json")
-        .header("Authorization", "test-token")
+        .header("Authorization", "94ef0988-9404-4baf-b405-6fce1d0c2c3b")
         .body(format!(
             r#"{{
             "path": "test-path",

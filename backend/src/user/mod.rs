@@ -1,5 +1,6 @@
 mod handlers;
 mod repository;
-pub(crate) mod routes;
+mod routes;
 
 pub(crate) use handlers::verify_user_password;
+pub(crate) use routes::routes;

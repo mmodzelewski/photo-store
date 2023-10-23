@@ -28,11 +28,8 @@ async fn main() -> Result<()> {
     let pool = database::init_db().await?;
     let state = AppState { db: pool };
 
-    let file_routes = file::routes::routes(state.clone())
-        .route_layer(axum::middleware::from_fn_with_state(
-            state.clone(),
-            auth::middleware::require_auth,
-        ))
+    let file_routes = file::routes(state.clone())
+        .route_layer(axum::middleware::from_fn(auth::middleware::require_auth))
         .route_layer(axum::middleware::from_fn_with_state(
             state.clone(),
             auth::middleware::ctx_resolver,
@@ -40,8 +37,8 @@ async fn main() -> Result<()> {
 
     let app = Router::new()
         .merge(file_routes)
-        .merge(auth::routes::routes(state.clone()))
-        .merge(user::routes::routes(state.clone()));
+        .merge(auth::routes(state.clone()))
+        .merge(user::routes(state.clone()));
 
     info!("Listening on localhost:3000");
     axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())

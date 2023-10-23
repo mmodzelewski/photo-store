@@ -1,6 +1,8 @@
 mod handlers;
 mod repository;
-pub mod routes;
+mod routes;
+
+pub(crate) use routes::routes;
 
 #[derive(Debug, sqlx::Type)]
 #[sqlx(type_name = "file_state")]

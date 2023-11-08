@@ -13,15 +13,20 @@ async fn dev_upload() -> Result<()> {
     println!("file_id: {}", file_id);
 
     let response = client
-        .post(format!("http://localhost:3000/u/{user_id}/files"))
+        .post(format!("http://localhost:3000/files/metadata"))
         .header("Content-Type", "application/json")
-        .header("Authorization", "94ef0988-9404-4baf-b405-6fce1d0c2c3b")
+        .header("Authorization", "29c48a07-e255-44c4-ada9-40be7532c6bb")
         .body(format!(
             r#"{{
-            "path": "test-path",
-            "uuid": "{file_id}",
-            "date": "2021-03-28T00:12:00+02:00",
-            "sha256": "f2ca1bb6c7e907d06dafe4687e579fce76b37e4e93b7605022da52e6ccc26fd2"
+                "user_id": "{user_id}",
+                "items": [
+                    {{
+                        "path": "test-path",
+                        "uuid": "{file_id}",
+                        "date": "2021-03-28T00:12:00+02:00",
+                        "sha256": "f2ca1bb6c7e907d06dafe4687e579fce76b37e4e93b7605022da52e6ccc26fd2"
+                    }}
+                ]
         }}"#
         ))
         .send()

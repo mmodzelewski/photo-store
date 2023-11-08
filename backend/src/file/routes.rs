@@ -7,7 +7,7 @@ use super::handlers;
 
 pub(crate) fn routes(app_state: AppState) -> Router {
     Router::new()
-        .route("/u/:id/files", post(handlers::file_meta_upload))
+        .route("/files/metadata", post(handlers::upload_files_metadata))
         .route(
             "/u/:user_id/files/:file_id/data",
             post(handlers::upload_file),

@@ -36,7 +36,7 @@ impl FileRepository {
         Ok(state.map(|s| s.state))
     }
 
-    pub(super) async fn save(db: &DbPool, file: &super::handlers::NewFile) -> Result<()> {
+    pub(super) async fn save(db: &DbPool, file: &super::handlers::FileMetadata) -> Result<()> {
         let query = sqlx::query!(
             r#"INSERT INTO file (
                 path, name, state, uuid, created_at, sha256

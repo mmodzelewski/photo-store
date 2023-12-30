@@ -2,7 +2,7 @@
     import { open } from "@tauri-apps/api/dialog";
     import { invoke, convertFileSrc } from "@tauri-apps/api/tauri";
     import { pictureDir } from "@tauri-apps/api/path";
-    import { listen } from "@tauri-apps/api/event";
+    import { listen, type UnlistenFn } from "@tauri-apps/api/event";
     import { navigation } from "../navigation";
     import { onDestroy, onMount } from "svelte";
     import Button from "@components/Button.svelte";
@@ -14,13 +14,13 @@
     };
     type FilesIndexedPayload = { total: number };
 
-    const unlistenFunctions = [];
+    const unlistenFunctions: UnlistenFn[] = [];
     let dialog: HTMLDialogElement;
     let filesIndexed: number;
     let thumbnailsGenerated: ThumbnailsGeneratedPayload;
     let latestThumbnail: string;
     let thumbnailToDisplay: string;
-    let interval: NodeJS.Timer;
+    let interval: NodeJS.Timeout;
 
     onMount(async () => {
         const unlisten1 = await listen<ThumbnailsGeneratedPayload>(
@@ -34,7 +34,7 @@
                         thumbnailToDisplay = latestThumbnail;
                     }, 2000);
                 }
-            }
+            },
         );
         unlistenFunctions.push(unlisten1);
 
@@ -43,7 +43,7 @@
             (event) => {
                 filesIndexed = event.payload.total;
                 dialog.showModal();
-            }
+            },
         );
         unlistenFunctions.push(unlisten2);
     });

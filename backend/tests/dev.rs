@@ -37,12 +37,11 @@ async fn dev_upload() -> Result<()> {
     if let Ok(file) = fs::read("tests/img.jpg") {
         let response = client
             .post(format!(
-                "http://localhost:3000/u/{user_id}/files/{file_id}/data"
+                "http://localhost:3000/files/{file_id}/data"
             ))
-            .header("Authorization", "test-token")
+            .header("Authorization", "29c48a07-e255-44c4-ada9-40be7532c6bb")
             .multipart(
                 Form::new()
-                    .text("uuid", "8f664c5d-8751-4b8d-bd07-0b115e97f24a")
                     .part(
                         "file",
                         Part::bytes(file)

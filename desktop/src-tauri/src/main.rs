@@ -26,29 +26,6 @@ const DATE_TIME_FORMAT: &[FormatItem<'static>] = format_description!(
     "[year]-[month]-[day] [hour]:[minute]:[second] \"[offset_hour]:[offset_minute]\""
 );
 
-#[tauri::command]
-async fn send_image() {
-    println!("send_image called");
-    let mut dir = fs::read_dir("/home/climbingdev/Pictures/images").unwrap();
-    let path = dir.next().unwrap().unwrap().path();
-    let file = fs::read(path).unwrap();
-
-    let form = reqwest::multipart::Form::new().part(
-        "file",
-        Part::bytes(file)
-            .file_name("test.jpg")
-            .mime_str("image/jpeg")
-            .unwrap(),
-    );
-    let client = reqwest::Client::new();
-    let res = client
-        .post("http://localhost:3000/upload")
-        .multipart(form)
-        .send()
-        .await;
-    println!("{:?}", res);
-}
-
 #[derive(Clone, serde::Serialize)]
 struct FilesIndexed {
     total: usize,
@@ -233,6 +210,76 @@ fn get_images(database: tauri::State<Database>) -> Result<Vec<Image>> {
     return Ok(images);
 }
 
+#[derive(Serialize, Debug)]
+struct ImageMetadata {
+    path: String,
+    uuid: String,
+    #[serde(with = "time::serde::iso8601")]
+    date: OffsetDateTime,
+    sha256: String,
+}
+
+#[derive(Serialize, Debug)]
+struct MetadataRequest {
+    user_id: String,
+    items: Vec<ImageMetadata>,
+}
+
+#[tauri::command]
+async fn sync_images(database: tauri::State<'_, Database>) -> Result<()> {
+    debug!("sync_images called");
+    let client = reqwest::Client::new();
+    let descriptors = database.get_indexed_images()?;
+    let image_metadata = descriptors
+        .iter()
+        .map(|desc| ImageMetadata {
+            path: desc.path.to_owned(),
+            uuid: desc.uuid.to_string(),
+            date: desc.date,
+            sha256: desc.sha256.to_owned(),
+        })
+        .collect();
+    let user_id = Uuid::new_v4().to_string();
+
+    let body = MetadataRequest {
+        user_id,
+        items: image_metadata,
+    };
+    debug!("Sending metadata: {:?}", body);
+
+    let response = client
+        .post(format!("http://localhost:3000/files/metadata"))
+        .header("Content-Type", "application/json")
+        .header("Authorization", "29c48a07-e255-44c4-ada9-40be7532c6bb")
+        .body(serde_json::to_string(&body).unwrap())
+        .send()
+        .await
+        .unwrap();
+    debug!("Response: {:?}", response);
+
+    debug!("Sending files");
+    for desc in descriptors {
+        let file = fs::read(&desc.path).unwrap();
+
+        let form = reqwest::multipart::Form::new().part(
+            "file",
+            Part::bytes(file)
+                .file_name(desc.path.to_owned())
+                .mime_str("image/jpeg")
+                .unwrap(),
+        );
+        println!("Sending file: {:?}", &desc.path);
+        let res = client
+            .post(format!("http://localhost:3000/files/{}/data", desc.uuid))
+            .header("Authorization", "29c48a07-e255-44c4-ada9-40be7532c6bb")
+            .multipart(form)
+            .send()
+            .await;
+        println!("{:?}", res);
+    }
+    return Ok(());
+}
+
 #[tauri::command]
 fn has_images_dirs(database: tauri::State<Database>) -> Result<bool> {
     debug!("Checking images dirs");
@@ -242,7 +289,7 @@ fn has_images_dirs(database: tauri::State<Database>) -> Result<bool> {
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
-            send_image,
+            sync_images,
             save_images_dirs,
             has_images_dirs,
             get_images,

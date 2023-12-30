@@ -27,7 +27,7 @@ uuid = { version = "1.4.0", features = ["v4", "fast-rng", "serde"] }
 fast_image_resize = "2.7.3"
 image = "0.24.6"
 kamadak-exif = "0.5.5"
-time = "0.3.23"
+time = { version = "0.3.23", features = ["serde"] }
 sha2 = "0.10.7"
 base64ct = { version = "1.6.0", features = ["std"] }
 url = "2.4.0"

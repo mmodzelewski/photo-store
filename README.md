@@ -10,7 +10,7 @@ across multiple platforms.
 
 #### Backend
 
-- [ ] Update AWS dependencies to v1
+- [x] Update AWS dependencies to v1
 - [ ] Refactor sending files to R2/S3
 
 #### Desktop

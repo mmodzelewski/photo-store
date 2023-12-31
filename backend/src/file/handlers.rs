@@ -1,3 +1,4 @@
+use aws_config::BehaviorVersion;
 use aws_sdk_s3::primitives::ByteStream;
 use axum::{
     extract::{multipart::Field, Multipart, Path, State},
@@ -109,7 +110,7 @@ async fn upload(file_id: Uuid, field: Field<'_>) {
     let local_config = local_config.unwrap();
     let key = format!("files/{}", file_id);
 
-    let config = aws_config::from_env()
+    let config = aws_config::defaults(BehaviorVersion::latest())
         .region("auto")
         .endpoint_url(local_config.r2_url)
         .load()
@@ -131,13 +132,13 @@ async fn upload(file_id: Uuid, field: Field<'_>) {
 
     let result = client
         .put_object()
-        .bucket(local_config.bucket_name)
-        .key(key)
+        .bucket(&local_config.bucket_name)
+        .key(&key)
         .content_type("image/jpeg")
         .body(stream)
         .send()
         .await;
 
-    println!("{:?}", result);
+    debug!("{:?}", result);
 }
 

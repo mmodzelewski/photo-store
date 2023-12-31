@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use aws_config::BehaviorVersion;
 use aws_sdk_s3::{
     primitives::ByteStream,
     types::{CompletedMultipartUpload, CompletedPart},
@@ -17,7 +18,7 @@ pub(crate) async fn list_uploads() -> &'static str {
     }
     let local_config = local_config.unwrap();
 
-    let config = aws_config::from_env()
+    let config = aws_config::defaults(BehaviorVersion::latest())
         .region("auto")
         .endpoint_url(local_config.r2_url)
         .load()
@@ -31,7 +32,7 @@ pub(crate) async fn list_uploads() -> &'static str {
         .await
         .unwrap();
 
-    for upload in result.uploads().unwrap() {
+    for upload in result.uploads() {
         println!("{:?}", upload);
         client
             .abort_multipart_upload()
@@ -56,7 +57,7 @@ pub(crate) async fn upload(mut multipart: Multipart) {
     let local_config = local_config.unwrap();
     let key = "test-image2";
 
-    let config = aws_config::from_env()
+    let config = aws_config::defaults(BehaviorVersion::latest())
         .region("auto")
         .endpoint_url(local_config.r2_url)
         .load()
@@ -135,7 +136,7 @@ pub(crate) async fn get_data() -> &'static str {
     }
     let local_config = local_config.unwrap();
 
-    let config = aws_config::from_env()
+    let config = aws_config::defaults(BehaviorVersion::latest())
         .region("auto")
         .endpoint_url(local_config.r2_url)
         .load()

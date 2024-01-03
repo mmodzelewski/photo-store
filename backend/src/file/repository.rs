@@ -1,3 +1,4 @@
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::database::DbPool;
@@ -9,6 +10,15 @@ pub(super) struct FileRepository;
 
 struct StateRow {
     state: FileState,
+}
+
+#[derive(Debug, sqlx::FromRow)]
+pub(super) struct File {
+    pub path: String,
+    pub state: FileState,
+    pub uuid: uuid::Uuid,
+    pub created_at: Option<OffsetDateTime>,
+    pub sha256: String,
 }
 
 impl FileRepository {
@@ -34,6 +44,20 @@ impl FileRepository {
         .map_err(|e| crate::error::Error::DbError(format!("Could not get file state {}", e)))?;
 
         Ok(state.map(|s| s.state))
+    }
+
+    pub(super) async fn find(db: &DbPool, uuid: &Uuid) -> Result<Option<File>> {
+        let file = sqlx::query_as!(
+            File,
+            r#"SELECT path, state as "state: _", uuid,
+            created_at, sha256 FROM file WHERE uuid = $1"#,
+            uuid
+        )
+        .fetch_optional(db)
+        .await
+        .map_err(|e| crate::error::Error::DbError(format!("Could not get file {}", e)))?;
+
+        Ok(file)
     }
 
     pub(super) async fn save(db: &DbPool, file: &super::handlers::FileMetadata) -> Result<()> {

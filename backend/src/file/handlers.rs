@@ -8,7 +8,7 @@ use time::OffsetDateTime;
 use tracing::{debug, error};
 use uuid::Uuid;
 
-use super::repository::FileRepository;
+use super::repository::{FileRepository, File};
 use crate::{
     config::Config,
     ctx::Ctx,
@@ -72,10 +72,11 @@ pub(super) async fn upload_file(
 
     let db = state.db;
 
-    let state = FileRepository::get_state(&db, &file_id).await?;
-    debug!("state: {:?}", state);
+    let file = FileRepository::find(&db, &file_id).await?
+        .ok_or_else(|| Error::FileUploadError(format!("File {:?} not found", &file_id)))?;
+    debug!("file: {:?}", file);
 
-    return if let Some(FileState::New) = state {
+    return if let FileState::New = file.state {
         FileRepository::update_state(&db, &file_id, FileState::SyncInProgress).await?;
 
         while let Some(field) = multipart.next_field().await.map_err(|e| {
@@ -86,10 +87,7 @@ pub(super) async fn upload_file(
                 debug!("file content type: {:?}", field.content_type());
                 debug!("file file name: {:?}", field.file_name());
                 debug!("file headers: {:?}", field.headers());
-                //let _ = field.bytes().await.map_err(|e| {
-                //    Error::FileUploadError(format!("Could not read field bytes {}", e))
-                //})?;
-                upload(file_id, field).await;
+                upload(&file, field).await?;
                 FileRepository::update_state(&db, &file_id, FileState::Synced).await?;
             }
         }
@@ -100,15 +98,13 @@ pub(super) async fn upload_file(
     };
 }
 
-async fn upload(file_id: Uuid, field: Field<'_>) {
-    debug!("uploading file: {:?}", file_id);
-    let local_config = Config::load().await;
-    if local_config.is_err() {
-        error!("{:?}", local_config);
-        return;
-    }
-    let local_config = local_config.unwrap();
-    let key = format!("files/{}", file_id);
+async fn upload(file: &File, field: Field<'_>) -> Result<()> {
+    debug!("uploading file: {:?}", file.uuid);
+    let local_config = Config::load().await.map_err(|e| {
+        error!("Could not load config {}", e);
+        Error::FileUploadError(format!("Could not load config {}", e))
+    })?;
+    let key = format!("files/{}", file.uuid);
 
     let config = aws_config::defaults(BehaviorVersion::latest())
         .region("auto")
@@ -119,7 +115,10 @@ async fn upload(file_id: Uuid, field: Field<'_>) {
 
     let file_name = field.file_name().unwrap().to_string();
     let content_type = field.content_type().unwrap().to_string();
-    let data = field.bytes().await.unwrap();
+    let data = field.bytes().await.map_err(|e| {
+        error!("Could not read field bytes {}", e);
+        Error::FileUploadError(format!("Could not read field bytes {}", e))
+    })?;
 
     debug!(
         "Length of `file` (`{}`: `{}`) is {} bytes",
@@ -135,10 +134,17 @@ async fn upload(file_id: Uuid, field: Field<'_>) {
         .bucket(&local_config.bucket_name)
         .key(&key)
         .content_type("image/jpeg")
+        .checksum_sha256(&file.sha256)
         .body(stream)
         .send()
-        .await;
+        .await
+        .map_err(|e| {
+            // improve error mapping
+            error!("Could not upload file {}", e);
+            Error::FileUploadError(format!("Could not upload file {}", e))
+        })?;
 
     debug!("{:?}", result);
+    return Ok(());
 }
 

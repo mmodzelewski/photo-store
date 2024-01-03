@@ -13,8 +13,8 @@ use log::debug;
 use reqwest::multipart::Part;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
-use std::fs;
 use std::path::Path;
+use std::{fs, sync::Mutex};
 use tauri::{AppHandle, Manager};
 use time::format_description::FormatItem;
 use time::macros::format_description;
@@ -226,8 +226,18 @@ struct MetadataRequest {
 }
 
 #[tauri::command]
-async fn sync_images(database: tauri::State<'_, Database>) -> Result<()> {
+async fn sync_images(
+    database: tauri::State<'_, Database>,
+    access_token: tauri::State<'_, AccessToken>,
+) -> Result<()> {
     debug!("sync_images called");
+    let access_token = {
+        access_token.value.lock().unwrap().clone()
+    };
+    let access_token = access_token.ok_or(Error::Generic(
+        "No access token found".to_owned(),
+    ))?;
+
     let client = reqwest::Client::new();
     let descriptors = database.get_indexed_images()?;
     let image_metadata = descriptors
@@ -250,7 +260,7 @@ async fn sync_images(database: tauri::State<'_, Database>) -> Result<()> {
     let response = client
         .post(format!("http://localhost:3000/files/metadata"))
         .header("Content-Type", "application/json")
-        .header("Authorization", "29c48a07-e255-44c4-ada9-40be7532c6bb")
+        .header("Authorization", &access_token)
         .body(serde_json::to_string(&body).unwrap())
         .send()
         .await
@@ -271,7 +281,7 @@ async fn sync_images(database: tauri::State<'_, Database>) -> Result<()> {
         println!("Sending file: {:?}", &desc.path);
         let res = client
             .post(format!("http://localhost:3000/files/{}/data", desc.uuid))
-            .header("Authorization", "29c48a07-e255-44c4-ada9-40be7532c6bb")
+            .header("Authorization", &access_token)
             .multipart(form)
             .send()
             .await;
@@ -286,6 +296,17 @@ fn has_images_dirs(database: tauri::State<Database>) -> Result<bool> {
     return database.has_images_dirs();
 }
 
+#[tauri::command]
+fn save_token(token: String, access_token: tauri::State<AccessToken>) -> Result<()> {
+    debug!("Saving access token");
+    *access_token.value.lock().unwrap() = Some(token);
+    return Ok(());
+}
+
+struct AccessToken {
+    value: Mutex<Option<String>>,
+}
+
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
@@ -293,6 +314,7 @@ fn main() {
             save_images_dirs,
             has_images_dirs,
             get_images,
+            save_token,
         ])
         .register_uri_scheme_protocol("image", image_protocol_handler)
         .setup(|app| {
@@ -307,6 +329,9 @@ fn main() {
 
             app.manage(Database::init(path)?);
             update_scopes(app)?;
+            app.manage(AccessToken {
+                value: Default::default(),
+            });
             return Ok(());
         })
         .run(tauri::generate_context!())

@@ -12,17 +12,19 @@ across multiple platforms.
 
 - [x] Update AWS dependencies to v1
 - [ ] Refactor sending files to R2/S3
+- [ ] Encrypt files before storing in R2
+- [ ] Save thumbnails
 
 #### Desktop
 
 - [ ] Add exif data to images index (original date added)
-- [ ] Change process for generating thumbnails - maybe on demand?
-- [ ] Add custom assets protocol for getting images by id and resolution - 
-      when Tauri v2 is available and async protocol implementation is possible
-- [ ] Test performance for storing thumbnails in sqlite
 - [ ] Add option for adding/removing source directories
 - [ ] Watch file changes: add, remove, move
 - [ ] Generate multiple thumbnails sizes
+- [ ] Test performance for storing thumbnails in sqlite
+- [ ] Change process for generating thumbnails - maybe on demand?
+- [ ] Add custom assets protocol for getting images by id and resolution - 
+      when Tauri v2 is available and async protocol implementation is possible
 - [x] Local images indexing
 - [x] Thumbnails generation for images
 - [x] Pagination for images loading
@@ -37,3 +39,8 @@ across multiple platforms.
 
 - [ ] Project set up
 - [ ] Sign up and login implementation
+
+#### Mobile
+
+- [ ] Project set up
+- [ ] Files upload

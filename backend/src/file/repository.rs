@@ -1,24 +1,14 @@
-use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::database::DbPool;
 use crate::error::Result;
 
-use super::FileState;
+use super::{File, FileState};
 
 pub(super) struct FileRepository;
 
 struct StateRow {
     state: FileState,
-}
-
-#[derive(Debug, sqlx::FromRow)]
-pub(super) struct File {
-    pub path: String,
-    pub state: FileState,
-    pub uuid: uuid::Uuid,
-    pub created_at: Option<OffsetDateTime>,
-    pub sha256: String,
 }
 
 impl FileRepository {
@@ -49,8 +39,9 @@ impl FileRepository {
     pub(super) async fn find(db: &DbPool, uuid: &Uuid) -> Result<Option<File>> {
         let file = sqlx::query_as!(
             File,
-            r#"SELECT path, state as "state: _", uuid,
-            created_at, sha256 FROM file WHERE uuid = $1"#,
+            r#"SELECT path, name, state as "state: _", uuid,
+            created_at, added_at, sha256, owner_id, uploader_id
+            FROM file WHERE uuid = $1"#,
             uuid
         )
         .fetch_optional(db)
@@ -60,17 +51,19 @@ impl FileRepository {
         Ok(file)
     }
 
-    pub(super) async fn save(db: &DbPool, file: &super::handlers::FileMetadata) -> Result<()> {
+    pub(super) async fn save(db: &DbPool, file: &File) -> Result<()> {
         let query = sqlx::query!(
             r#"INSERT INTO file (
-                path, name, state, uuid, created_at, sha256
-            ) VALUES ($1, $2, $3, $4, $5, $6)"#,
+                path, name, state, uuid, created_at, sha256, owner_id, uploader_id
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"#,
             file.path,
-            file.path,
-            FileState::New as _,
+            file.name,
+            file.state as _,
             file.uuid,
-            file.date,
-            file.sha256
+            file.created_at,
+            file.sha256,
+            file.owner_id,
+            file.uploader_id,
         );
 
         query
@@ -89,7 +82,7 @@ impl FileRepository {
         );
 
         query.execute(db).await.map_err(|e| {
-            crate::error::Error::DbError(format!("Could not update file state {}", e))
+            crate::error::Error::DbError(format!("Could not update file {} state {}", file_id, e))
         })?;
 
         Ok(())

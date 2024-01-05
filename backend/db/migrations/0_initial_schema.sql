@@ -21,8 +21,10 @@ create table file (
     name text not null,
     state file_state not null,
     uuid uuid not null,
-    created_at timestamptz,
+    created_at timestamptz not null,
     added_at timestamptz not null default now(),
-    sha256 text not null
+    sha256 text not null,
+    owner_id uuid not null,
+    uploader_id uuid not null
 );
 

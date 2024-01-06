@@ -9,6 +9,7 @@ pub(super) async fn save(
     db: &DbPool,
     user_id: &Uuid,
     user: &super::handlers::UserRegister,
+    enc_key: &str,
 ) -> Result<()> {
     let query = sqlx::query!(
         r#"INSERT INTO app_user (
@@ -23,6 +24,19 @@ pub(super) async fn save(
         .execute(db)
         .await
         .map_err(|e| Error::DbError(format!("Could not save user {}", e)))?;
+
+    let query = sqlx::query!(
+        r#"INSERT INTO encryption_key (
+                user_id, key
+            ) VALUES ($1, $2)"#,
+        user_id,
+        enc_key,
+    );
+
+    query
+        .execute(db)
+        .await
+        .map_err(|e| Error::DbError(format!("Could not save encryption key {}", e)))?;
 
     Ok(())
 }

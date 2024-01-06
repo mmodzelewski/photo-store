@@ -1,8 +1,10 @@
+use aes_gcm::{Aes256Gcm, Key, KeyInit};
 use argon2::{
     password_hash::{rand_core::OsRng, SaltString},
     Argon2, PasswordHash, PasswordHasher, PasswordVerifier,
 };
 use axum::{extract::State, Json};
+use base64ct::{Base64, Encoding};
 use tracing::debug;
 use uuid::Uuid;
 
@@ -41,7 +43,9 @@ pub(super) async fn register(
         password: password_hash,
     };
 
-    repository::save(&db, &user_id, &user).await?;
+    let enc_key: Key<Aes256Gcm> = Aes256Gcm::generate_key(OsRng);
+    let encoded_key = Base64::encode_string(&enc_key);
+    repository::save(&db, &user_id, &user, &encoded_key).await?;
 
     let user_id = user_id.to_string();
     debug!("User registered: {}, {}", user.username, user_id);

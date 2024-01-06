@@ -24,5 +24,5 @@ pub(crate) struct File {
     pub sha256: String,
     pub owner_id: uuid::Uuid,
     pub uploader_id: uuid::Uuid,
+    pub key: Option<String>,
 }
-

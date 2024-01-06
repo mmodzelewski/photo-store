@@ -36,18 +36,15 @@ async fn dev_upload() -> Result<()> {
 
     if let Ok(file) = fs::read("tests/img.jpg") {
         let response = client
-            .post(format!(
-                "http://localhost:3000/files/{file_id}/data"
-            ))
+            .post(format!("http://localhost:3000/files/{file_id}/data"))
             .header("Authorization", "29c48a07-e255-44c4-ada9-40be7532c6bb")
             .multipart(
-                Form::new()
-                    .part(
-                        "file",
-                        Part::bytes(file)
-                            .file_name("img.jpg")
-                            .mime_str("image/jpeg")?,
-                    ),
+                Form::new().part(
+                    "file",
+                    Part::bytes(file)
+                        .file_name("img.jpg")
+                        .mime_str("image/jpeg")?,
+                ),
             )
             .send()
             .await?;

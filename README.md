@@ -12,7 +12,7 @@ across multiple platforms.
 
 - [x] Update AWS dependencies to v1
 - [ ] Refactor sending files to R2/S3
-- [ ] Encrypt files before storing in R2
+- [x] Encrypt files before storing in R2
 - [ ] Save thumbnails
 
 #### Desktop

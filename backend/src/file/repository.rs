@@ -39,9 +39,13 @@ impl FileRepository {
     pub(super) async fn find(db: &DbPool, uuid: &Uuid) -> Result<Option<File>> {
         let file = sqlx::query_as!(
             File,
-            r#"SELECT path, name, state as "state: _", uuid,
-            created_at, added_at, sha256, owner_id, uploader_id
-            FROM file WHERE uuid = $1"#,
+            r#"SELECT
+            path, name, state as "state: _", uuid,
+            f.created_at, added_at, sha256,
+            owner_id, uploader_id, enc.key
+            FROM file f
+            LEFT JOIN encryption_key enc ON f.owner_id = enc.user_id
+            WHERE uuid = $1"#,
             uuid
         )
         .fetch_optional(db)

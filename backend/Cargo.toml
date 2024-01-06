@@ -12,7 +12,9 @@ async-trait = "0.1.75"
 aws-config = "1.1.1"
 aws-sdk-s3 = "1.11.0"
 axum = { version = "0.6.20", features = ["multipart"] }
+base64ct = { version = "1.6.0", features = ["std"] }
 serde = { version = "1.0.193", features = ["derive"] }
+sha2 = "0.10.8"
 sqlx = { version = "0.7.3", features = ["runtime-tokio", "tls-native-tls", "postgres", "uuid", "time", "migrate"] }
 thiserror = "1.0.52"
 time = { version = "0.3.31", features = ["parsing", "serde"] }

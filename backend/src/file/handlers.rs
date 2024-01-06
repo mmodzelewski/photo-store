@@ -1,21 +1,25 @@
 use aws_config::BehaviorVersion;
 use aws_sdk_s3::primitives::ByteStream;
 use axum::{
-    extract::{multipart::Field, Multipart, Path, State},
+    extract::{Multipart, multipart::Field, Path, State},
     Json,
 };
+use axum::body::Bytes;
+use base64ct::{Base64, Encoding};
+use sha2::{Digest, Sha256};
 use time::OffsetDateTime;
 use tracing::{debug, error, warn};
 use uuid::Uuid;
 
-use super::{repository::FileRepository, File};
 use crate::{
+    AppState,
     config::Config,
     ctx::Ctx,
     error::{Error, Result},
     file::FileState,
-    AppState,
 };
+
+use super::{File, repository::FileRepository};
 
 #[derive(Debug, serde::Deserialize)]
 pub(super) struct FileMetadata {
@@ -170,7 +174,15 @@ async fn upload(file: &File, field: Field<'_>) -> Result<()> {
         Error::FileUploadError(format!("Could not read field bytes {}", e))
     })?;
 
-    let file_key = format!("files/{}/{}", file.owner_id, file.uuid);
+    let hash = hash(&data)?;
+    if hash != file.sha256 {
+        return Err(Error::FileUploadError(format!(
+            "File {} hash mismatch, expected {}, got {}",
+            file.uuid, file.sha256, hash
+        )));
+    }
+
+    let file_key = format!("files/{}/{}/original", file.owner_id, file.uuid);
     let result = client
         .put_object()
         .bucket(&local_config.bucket_name)
@@ -189,4 +201,10 @@ async fn upload(file: &File, field: Field<'_>) -> Result<()> {
 
     debug!("File {} upload result: {:?}", file.uuid, result);
     return Ok(());
+}
+
+fn hash(data: &Bytes) -> Result<String> {
+    let hash = Sha256::digest(data);
+    let encoded = Base64::encode_string(&hash);
+    return Ok(encoded);
 }

@@ -11,6 +11,7 @@ use axum::{
 use base64ct::{Base64, Encoding};
 use sha2::{Digest, Sha256};
 use time::OffsetDateTime;
+use tokio::fs;
 use tracing::{debug, error, warn};
 use uuid::Uuid;
 
@@ -87,6 +88,79 @@ pub(super) async fn upload_files_metadata(
     }
 
     Ok(())
+}
+pub(super) async fn get_file(
+    State(state): State<AppState>,
+    ctx: Ctx,
+    Path(file_id): Path<Uuid>,
+) -> Result<()> {
+    debug!(
+        "Getting file: {:?}. Authenticated user {}",
+        file_id,
+        ctx.user_id()
+    );
+
+    let db = state.db;
+
+    let file = FileRepository::find(&db, &file_id).await?.ok_or_else(|| {
+        Error::FileUploadError(format!("Metadata for file {:?} not found", &file_id))
+    })?;
+    debug!("Found file: {:?}", file);
+    // todo(mm): change config handling
+    let local_config = Config::load().await.map_err(|e| {
+        error!("Could not load config {}", e);
+        Error::FileUploadError(format!("Could not load config {}", e))
+    })?;
+
+    let config = aws_config::defaults(BehaviorVersion::latest())
+        .region("auto")
+        .endpoint_url(local_config.r2_url)
+        .load()
+        .await;
+    // todo(mm): initialize client once
+
+    let client = aws_sdk_s3::Client::new(&config);
+    let file_key = format!("files/{}/{}/original", file.owner_id, file.uuid);
+
+    let result = client
+        .get_object()
+        .bucket(&local_config.bucket_name)
+        .key(&file_key)
+        .send()
+        .await
+        .map_err(|e| {
+            // improve error mapping
+            let message = format!("Could not get file {}, error: {}", file.uuid, e);
+            error!(message);
+            Error::FileUploadError(message)
+        })?;
+
+    let out = result.body.collect().await.map_err(|e| {
+        // improve error mapping
+        let message = format!("Could not read file {}, error: {}", file.uuid, e);
+        error!(message);
+        Error::FileUploadError(message)
+    })?.into_bytes();
+    let decrypted = decrypt_data(&file, out)?;
+
+    fs::write(format!("./tmp/{}.jpg", file.uuid), decrypted).await.unwrap();
+
+    return Ok(());
+}
+
+fn decrypt_data(file: &File, data: Bytes) -> Result<Vec<u8>> {
+    let encryption_key = decode_encryption_key(file)?;
+    let aes256key = Key::<Aes256Gcm>::from_slice(&encryption_key);
+    let cipher = Aes256Gcm::new(aes256key);
+    let nonce = generate_nonce_from_uuid(file.uuid);
+
+    let decrypted_data = cipher.decrypt(&nonce, data.as_ref()).map_err(|e| {
+        Error::FileUploadError(format!(
+            "Could not decrypt file {}, error {}",
+            file.uuid, e
+        ))
+    })?;
+    Ok(decrypted_data)
 }
 
 pub(super) async fn upload_file(

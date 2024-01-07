@@ -1,6 +1,6 @@
 use sqlx::{migrate, postgres::PgPoolOptions, Pool, Postgres};
 
-use crate::{error::Result, config::DatabaseConfig};
+use crate::{config::DatabaseConfig, error::Result};
 
 pub type DbPool = Pool<Postgres>;
 

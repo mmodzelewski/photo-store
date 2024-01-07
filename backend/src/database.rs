@@ -1,13 +1,13 @@
 use sqlx::{migrate, postgres::PgPoolOptions, Pool, Postgres};
 
-use crate::error::Result;
+use crate::{error::Result, config::DatabaseConfig};
 
 pub type DbPool = Pool<Postgres>;
 
-pub async fn init_db() -> Result<DbPool> {
+pub async fn init_db(config: &DatabaseConfig) -> Result<DbPool> {
     let pool = PgPoolOptions::new()
         .max_connections(5)
-        .connect("postgres://postgres:postgres@localhost:5432/photo_store_test")
+        .connect(&config.url)
         .await
         .map_err(|e| crate::error::Error::DbError(format!("Could not connect to db {}", e)))?;
 

@@ -11,23 +11,24 @@ use crate::config::Config;
 
 #[allow(dead_code)]
 pub(crate) async fn list_uploads() -> &'static str {
-    let local_config = Config::load().await;
+    let local_config = Config::load();
     if local_config.is_err() {
         println!("{:?}", local_config);
         return "error";
     }
     let local_config = local_config.unwrap();
+    let storage_config = local_config.storage.clone();
 
     let config = aws_config::defaults(BehaviorVersion::latest())
         .region("auto")
-        .endpoint_url(local_config.r2_url)
+        .endpoint_url(storage_config.url)
         .load()
         .await;
     let client = aws_sdk_s3::Client::new(&config);
 
     let result = client
         .list_multipart_uploads()
-        .bucket(&local_config.bucket_name)
+        .bucket(&storage_config.bucket_name)
         .send()
         .await
         .unwrap();
@@ -36,7 +37,7 @@ pub(crate) async fn list_uploads() -> &'static str {
         println!("{:?}", upload);
         client
             .abort_multipart_upload()
-            .bucket(&local_config.bucket_name)
+            .bucket(&storage_config.bucket_name)
             .key(upload.key().unwrap())
             .upload_id(upload.upload_id().unwrap())
             .send()
@@ -49,23 +50,24 @@ pub(crate) async fn list_uploads() -> &'static str {
 
 #[allow(dead_code)]
 pub(crate) async fn upload(mut multipart: Multipart) {
-    let local_config = Config::load().await;
+    let local_config = Config::load();
     if local_config.is_err() {
         println!("{:?}", local_config);
         return;
     }
     let local_config = local_config.unwrap();
+    let storage_config = local_config.storage.clone();
     let key = "test-image2";
 
     let config = aws_config::defaults(BehaviorVersion::latest())
         .region("auto")
-        .endpoint_url(local_config.r2_url)
+        .endpoint_url(storage_config.url)
         .load()
         .await;
     let client = aws_sdk_s3::Client::new(&config);
     let output = client
         .create_multipart_upload()
-        .bucket(&local_config.bucket_name)
+        .bucket(&storage_config.bucket_name)
         .key(key)
         .content_type("image/jpeg")
         .send()
@@ -95,7 +97,7 @@ pub(crate) async fn upload(mut multipart: Multipart) {
         let completed = client
             .upload_part()
             .key(key)
-            .bucket(&local_config.bucket_name)
+            .bucket(&storage_config.bucket_name)
             .upload_id(upload_id)
             .body(stream)
             .part_number(part_number)
@@ -117,7 +119,7 @@ pub(crate) async fn upload(mut multipart: Multipart) {
 
     let complete = client
         .complete_multipart_upload()
-        .bucket(&local_config.bucket_name)
+        .bucket(storage_config.bucket_name)
         .key(key)
         .multipart_upload(completed)
         .upload_id(upload_id)
@@ -129,16 +131,17 @@ pub(crate) async fn upload(mut multipart: Multipart) {
 
 #[allow(dead_code)]
 pub(crate) async fn get_data() -> &'static str {
-    let local_config = Config::load().await;
+    let local_config = Config::load();
     if local_config.is_err() {
         println!("{:?}", local_config);
         return "error";
     }
     let local_config = local_config.unwrap();
+    let storage_config = local_config.storage.clone();
 
     let config = aws_config::defaults(BehaviorVersion::latest())
         .region("auto")
-        .endpoint_url(local_config.r2_url)
+        .endpoint_url(storage_config.url)
         .load()
         .await;
     let client = aws_sdk_s3::Client::new(&config);
@@ -148,7 +151,7 @@ pub(crate) async fn get_data() -> &'static str {
     let body = ByteStream::from_path(Path::new("")).await;
     let result = client
         .put_object()
-        .bucket(local_config.bucket_name)
+        .bucket(storage_config.bucket_name)
         .key("test-image")
         .content_type("image/jpeg")
         .body(body.unwrap())

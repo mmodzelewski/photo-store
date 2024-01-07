@@ -2,6 +2,7 @@ use axum::Router;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
 
+use config::Config;
 use database::DbPool;
 use error::Result;
 
@@ -17,6 +18,7 @@ mod user;
 #[derive(Clone)]
 pub struct AppState {
     db: DbPool,
+    config: Config,
 }
 
 #[tokio::main]
@@ -25,8 +27,9 @@ async fn main() -> Result<()> {
         .with_env_filter(EnvFilter::from_default_env())
         .init();
 
-    let pool = database::init_db().await?;
-    let state = AppState { db: pool };
+    let config = Config::load()?;
+    let pool = database::init_db(&config.database).await?;
+    let state = AppState { db: pool, config };
 
     let file_routes = file::routes(state.clone())
         .route_layer(axum::middleware::from_fn(auth::middleware::require_auth))

@@ -14,8 +14,8 @@ use time::OffsetDateTime;
 use tracing::{debug, error, warn};
 use uuid::Uuid;
 
+use crate::config::StorageConfig;
 use crate::{
-    config::Config,
     ctx::Ctx,
     error::{Error, Result},
     file::FileState,
@@ -129,7 +129,7 @@ pub(super) async fn upload_file(
             })? {
                 debug!("Got field: {:?}", &field);
                 if Some("file") == field.name() {
-                    upload(&file, field).await?;
+                    upload(&file, field, &state.config.storage).await?;
                     FileRepository::update_state(&db, &file_id, FileState::Synced).await?;
                 }
             }
@@ -148,22 +148,16 @@ pub(super) async fn upload_file(
     };
 }
 
-async fn upload(file: &File, field: Field<'_>) -> Result<()> {
+async fn upload(file: &File, field: Field<'_>, config: &StorageConfig) -> Result<()> {
     debug!("Uploading file {} data", file.uuid);
 
-    // todo(mm): change config handling
-    let local_config = Config::load().await.map_err(|e| {
-        error!("Could not load config {}", e);
-        Error::FileUploadError(format!("Could not load config {}", e))
-    })?;
-
-    let config = aws_config::defaults(BehaviorVersion::latest())
+    let aws_config = aws_config::defaults(BehaviorVersion::latest())
         .region("auto")
-        .endpoint_url(local_config.r2_url)
+        .endpoint_url(&config.url)
         .load()
         .await;
     // todo(mm): initialize client once
-    let client = aws_sdk_s3::Client::new(&config);
+    let client = aws_sdk_s3::Client::new(&aws_config);
 
     let content_type = field
         .content_type()
@@ -185,7 +179,7 @@ async fn upload(file: &File, field: Field<'_>) -> Result<()> {
     let file_key = format!("files/{}/{}/original", file.owner_id, file.uuid);
     let result = client
         .put_object()
-        .bucket(&local_config.bucket_name)
+        .bucket(&config.bucket_name)
         .key(&file_key)
         .content_type(content_type)
         .checksum_sha256(encrypted_data_hash)

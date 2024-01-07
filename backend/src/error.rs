@@ -17,6 +17,8 @@ pub enum Error {
     AuthError(#[from] crate::auth::error::Error),
     #[error("Password hashing error: {0}")]
     PasswordHashingError(String),
+    #[error("Configuration error: {0}")]
+    ConfigurationError(String),
 }
 
 impl IntoResponse for Error {

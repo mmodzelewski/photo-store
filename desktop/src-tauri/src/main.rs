@@ -11,7 +11,7 @@ use database::Database;
 use error::{Error, Result};
 use log::debug;
 use reqwest::multipart::Part;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::path::Path;
 use std::{fs, sync::Mutex};
@@ -221,22 +221,19 @@ struct ImageMetadata {
 
 #[derive(Serialize, Debug)]
 struct MetadataRequest {
-    user_id: String,
+    user_id: Uuid,
     items: Vec<ImageMetadata>,
 }
 
 #[tauri::command]
 async fn sync_images(
     database: tauri::State<'_, Database>,
-    access_token: tauri::State<'_, AccessToken>,
+    app_state: tauri::State<'_, AppState>,
 ) -> Result<()> {
     debug!("sync_images called");
-    let access_token = {
-        access_token.value.lock().unwrap().clone()
-    };
-    let access_token = access_token.ok_or(Error::Generic(
-        "No access token found".to_owned(),
-    ))?;
+
+    let user_data = { app_state.user_data.lock().unwrap().clone() };
+    let user_data = user_data.ok_or(Error::Generic("User is not logged in".to_owned()))?;
 
     let client = reqwest::Client::new();
     let descriptors = database.get_indexed_images()?;
@@ -249,10 +246,9 @@ async fn sync_images(
             sha256: desc.sha256.to_owned(),
         })
         .collect();
-    let user_id = Uuid::new_v4().to_string();
 
     let body = MetadataRequest {
-        user_id,
+        user_id: user_data.user_id,
         items: image_metadata,
     };
     debug!("Sending metadata: {:?}", body);
@@ -260,7 +256,7 @@ async fn sync_images(
     let response = client
         .post(format!("http://localhost:3000/files/metadata"))
         .header("Content-Type", "application/json")
-        .header("Authorization", &access_token)
+        .header("Authorization", &user_data.auth_token)
         .body(serde_json::to_string(&body).unwrap())
         .send()
         .await
@@ -281,7 +277,7 @@ async fn sync_images(
         println!("Sending file: {:?}", &desc.path);
         let res = client
             .post(format!("http://localhost:3000/files/{}/data", desc.uuid))
-            .header("Authorization", &access_token)
+            .header("Authorization", &user_data.auth_token)
             .multipart(form)
             .send()
             .await;
@@ -297,14 +293,53 @@ fn has_images_dirs(database: tauri::State<Database>) -> Result<bool> {
 }
 
 #[tauri::command]
-fn save_token(token: String, access_token: tauri::State<AccessToken>) -> Result<()> {
-    debug!("Saving access token");
-    *access_token.value.lock().unwrap() = Some(token);
+async fn login(
+    username: String,
+    password: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<()> {
+    debug!("Logging in");
+
+    let client = reqwest::Client::new();
+    let body = Login { username, password };
+    let response = client
+        .post("http://localhost:3000/login")
+        .header("Content-Type", "application/json")
+        .json(&body)
+        .send()
+        .await
+        .unwrap();
+    debug!("{:?}", response);
+
+    let response = response.json::<LoginResponse>().await.unwrap();
+
+    *state.user_data.lock().unwrap() = Some(UserData {
+        auth_token: response.auth_token,
+        user_id: response.user_id,
+    });
     return Ok(());
 }
 
-struct AccessToken {
-    value: Mutex<Option<String>>,
+#[derive(Serialize)]
+struct Login {
+    username: String,
+    password: String,
+}
+
+#[derive(Deserialize)]
+struct LoginResponse {
+    user_id: Uuid,
+    auth_token: String,
+}
+
+struct AppState {
+    user_data: Mutex<Option<UserData>>,
+}
+
+#[derive(Clone)]
+struct UserData {
+    user_id: Uuid,
+    auth_token: String,
 }
 
 fn main() {
@@ -314,7 +349,7 @@ fn main() {
             save_images_dirs,
             has_images_dirs,
             get_images,
-            save_token,
+            login,
         ])
         .register_uri_scheme_protocol("image", image_protocol_handler)
         .setup(|app| {
@@ -329,8 +364,8 @@ fn main() {
 
             app.manage(Database::init(path)?);
             update_scopes(app)?;
-            app.manage(AccessToken {
-                value: Default::default(),
+            app.manage(AppState {
+                user_data: Default::default(),
             });
             return Ok(());
         })

@@ -4,10 +4,11 @@
     import { invoke } from "@tauri-apps/api";
 
     let dialog: HTMLDialogElement;
-    let accessToken: string = "";
+    let username: string;
+    let password: string;
 
-    function saveToken() {
-        invoke("save_token", { token: accessToken });
+    async function login() {
+        invoke("login", { username, password });
         dialog.close();
     }
 </script>
@@ -25,12 +26,15 @@
     class="h-44 w-96 rounded-lg border-2 border-solid border-zinc-500 bg-zinc-700 text-white backdrop:bg-black backdrop:opacity-50"
 >
     <div class="flex h-full w-full flex-col justify-center">
-        <label for="access-token">Access token</label>
+        <label for="username">Username</label>
+        <input name="username" class="text-black" bind:value={username} />
+        <label for="password">Password</label>
         <input
-            name="access-token"
+            name="password"
+            type="password"
             class="text-black"
-            bind:value={accessToken}
+            bind:value={password}
         />
-        <Button on:click={() => saveToken()}>Save</Button>
+        <Button on:click={() => login()}>Save</Button>
     </div>
 </dialog>

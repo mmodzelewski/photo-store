@@ -12,21 +12,25 @@ pub(super) struct UserLogin {
 }
 
 #[derive(serde::Serialize)]
-pub(super) struct AuthTokenResponse {
+pub(super) struct LoginResponse {
+    pub user_id: Uuid,
     pub auth_token: String,
 }
 
 pub(super) async fn login(
     State(state): State<AppState>,
     Json(user): Json<UserLogin>,
-) -> Result<Json<AuthTokenResponse>> {
+) -> Result<Json<LoginResponse>> {
     let db = &state.db;
     let user_id = verify_user_password(db, &user.username, &user.password).await?;
 
     let auth_token = Uuid::new_v4().to_string();
     AuthRepository::save_auth_token(db, &user_id, &auth_token).await?;
 
-    return Ok(Json(AuthTokenResponse { auth_token }));
+    return Ok(Json(LoginResponse {
+        user_id,
+        auth_token,
+    }));
 }
 
 pub(super) async fn verify_token(db: &DbPool, token: &str) -> Result<Uuid> {

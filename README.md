@@ -6,7 +6,7 @@ across multiple platforms.
 
 ### Todo
 
-- [ ] Cargo workspace for sharing code between apps?
+- [x] Cargo workspace for sharing code between apps?
 
 #### Backend
 

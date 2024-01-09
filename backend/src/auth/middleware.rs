@@ -1,4 +1,5 @@
 use axum::{
+    body::Body,
     extract::{FromRequestParts, State},
     http::{request::Parts, Request},
     middleware::Next,
@@ -13,10 +14,10 @@ use crate::{
     AppState,
 };
 
-pub(crate) async fn require_auth<B>(
+pub(crate) async fn require_auth(
     ctx: Result<Ctx>,
-    request: Request<B>,
-    next: Next<B>,
+    request: Request<Body>,
+    next: Next,
 ) -> Result<Response> {
     debug!("require_auth middleware");
 
@@ -26,10 +27,10 @@ pub(crate) async fn require_auth<B>(
     Ok(next.run(request).await)
 }
 
-pub(crate) async fn ctx_resolver<B>(
+pub(crate) async fn ctx_resolver(
     State(state): State<AppState>,
-    mut request: Request<B>,
-    next: Next<B>,
+    mut request: Request<Body>,
+    next: Next,
 ) -> Result<Response> {
     debug!("ctx_resolver middleware");
 

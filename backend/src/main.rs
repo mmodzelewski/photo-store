@@ -1,4 +1,5 @@
 use axum::Router;
+use tokio::net::TcpListener;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
 
@@ -44,8 +45,8 @@ async fn main() -> Result<()> {
         .merge(user::routes(state.clone()));
 
     info!("Listening on localhost:3000");
-    axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
-        .serve(app.into_make_service())
+    let listener = TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    axum::serve(listener, app.into_make_service())
         .await
         .unwrap();
 

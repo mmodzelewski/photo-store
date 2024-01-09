@@ -8,10 +8,11 @@ mod image;
 use crate::image::image_protocol::image_protocol_handler;
 use base64ct::{Base64, Encoding};
 use database::Database;
+use dtos::auth::{LoginRequest, LoginResponse};
 use error::{Error, Result};
 use log::debug;
 use reqwest::multipart::Part;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::path::Path;
 use std::{fs, sync::Mutex};
@@ -301,7 +302,7 @@ async fn login(
     debug!("Logging in");
 
     let client = reqwest::Client::new();
-    let body = Login { username, password };
+    let body = LoginRequest { username, password };
     let response = client
         .post("http://localhost:3000/login")
         .header("Content-Type", "application/json")
@@ -318,18 +319,6 @@ async fn login(
         user_id: response.user_id,
     });
     return Ok(());
-}
-
-#[derive(Serialize)]
-struct Login {
-    username: String,
-    password: String,
-}
-
-#[derive(Deserialize)]
-struct LoginResponse {
-    user_id: Uuid,
-    auth_token: String,
 }
 
 struct AppState {

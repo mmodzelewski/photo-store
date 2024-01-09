@@ -648,6 +648,7 @@ dependencies = [
  "axum",
  "base64ct",
  "config",
+ "dtos",
  "reqwest",
  "serde",
  "sha2",
@@ -1359,6 +1360,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dbaceec3c6e4211c79e7b1800fb9680527106beb2f9c51904a3210c03a448c74"
 dependencies = [
  "dtoa",
+]
+
+[[package]]
+name = "dtos"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "uuid",
 ]
 
 [[package]]
@@ -3478,6 +3487,7 @@ name = "photo-store"
 version = "0.0.0"
 dependencies = [
  "base64ct",
+ "dtos",
  "env_logger",
  "fast_image_resize",
  "image",

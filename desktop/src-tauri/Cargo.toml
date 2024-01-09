@@ -31,6 +31,7 @@ time = { version = "0.3.23", features = ["serde"] }
 sha2 = "0.10.7"
 base64ct = { version = "1.6.0", features = ["std"] }
 url = "2.4.0"
+dtos = { version = "0.1.0", path = "../../crates/dtos" }
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem

@@ -1,6 +1,6 @@
 use crate::{
     error::{Error, Result},
-    FileDesc,
+    handlers::FileDesc,
 };
 use log::debug;
 use rusqlite::Connection;

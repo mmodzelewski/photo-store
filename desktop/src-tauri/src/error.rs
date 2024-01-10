@@ -14,6 +14,8 @@ pub enum Error {
     Exif(#[from] exif::Error),
     #[error(transparent)]
     TimeParsing(#[from] time::error::Parse),
+    #[error(transparent)]
+    HttpError(#[from] reqwest::Error),
     #[error("{0}")]
     Generic(String),
     #[error("Runtime error: {0}")]

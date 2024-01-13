@@ -2,6 +2,7 @@ use crate::database::Database;
 use crate::error::{Error, Result};
 use base64ct::{Base64, Encoding};
 use dtos::auth::{LoginRequest, LoginResponse};
+use dtos::file::{FileMetadata, FilesUploadRequest};
 use log::debug;
 use reqwest::multipart::Part;
 use serde::Serialize;
@@ -201,21 +202,6 @@ pub(crate) fn get_images(database: tauri::State<Database>) -> Result<Vec<Image>>
     return Ok(images);
 }
 
-#[derive(Serialize, Debug)]
-struct ImageMetadata {
-    path: String,
-    uuid: String,
-    #[serde(with = "time::serde::iso8601")]
-    date: OffsetDateTime,
-    sha256: String,
-}
-
-#[derive(Serialize, Debug)]
-struct MetadataRequest {
-    user_id: Uuid,
-    items: Vec<ImageMetadata>,
-}
-
 #[tauri::command]
 pub(crate) async fn sync_images(
     database: tauri::State<'_, Database>,
@@ -230,17 +216,17 @@ pub(crate) async fn sync_images(
     let descriptors = database.get_indexed_images()?;
     let image_metadata = descriptors
         .iter()
-        .map(|desc| ImageMetadata {
+        .map(|desc| FileMetadata {
             path: desc.path.to_owned(),
-            uuid: desc.uuid.to_string(),
+            uuid: desc.uuid,
             date: desc.date,
             sha256: desc.sha256.to_owned(),
         })
         .collect();
 
-    let body = MetadataRequest {
+    let body = FilesUploadRequest {
         user_id: user_data.user_id,
-        items: image_metadata,
+        files: image_metadata,
     };
     debug!("Sending metadata: {:?}", body);
 

@@ -9,6 +9,7 @@ use axum::{
     Json,
 };
 use base64ct::{Base64, Encoding};
+use dtos::file::FilesUploadRequest;
 use sha2::{Digest, Sha256};
 use time::OffsetDateTime;
 use tracing::{debug, error, warn};
@@ -24,44 +25,29 @@ use crate::{
 
 use super::{repository::FileRepository, File};
 
-#[derive(Debug, serde::Deserialize)]
-pub(super) struct FileMetadata {
-    pub path: String,
-    pub uuid: uuid::Uuid,
-    #[serde(with = "time::serde::iso8601")]
-    pub date: OffsetDateTime,
-    pub sha256: String,
-}
-
-#[derive(Debug, serde::Deserialize)]
-pub(super) struct FilesMetadata {
-    pub user_id: uuid::Uuid,
-    pub items: Vec<FileMetadata>,
-}
-
 pub(super) async fn upload_files_metadata(
     State(state): State<AppState>,
     ctx: Ctx,
-    Json(metadata): Json<FilesMetadata>,
+    Json(request): Json<FilesUploadRequest>,
 ) -> Result<()> {
     debug!(
         "Uploading files metadata. Received {} items for user {}. Authenticated user {}",
-        metadata.items.len(),
-        metadata.user_id,
+        request.files.len(),
+        request.user_id,
         ctx.user_id(),
     );
 
-    if metadata.user_id != ctx.user_id() {
+    if request.user_id != ctx.user_id() {
         return Err(Error::FileUploadError(format!(
             "User {} is trying to upload files for user {}",
             ctx.user_id(),
-            metadata.user_id
+            request.user_id
         )));
     }
 
     let db = state.db;
 
-    for item in metadata.items {
+    for item in request.files {
         let exists = FileRepository::exists(&db, &item.uuid).await?;
 
         if exists {
@@ -77,7 +63,7 @@ pub(super) async fn upload_files_metadata(
             created_at: item.date,
             added_at: OffsetDateTime::now_utc(),
             sha256: item.sha256,
-            owner_id: metadata.user_id.clone(),
+            owner_id: request.user_id.clone(),
             uploader_id: ctx.user_id(),
             key: None,
         };

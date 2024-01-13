@@ -5,4 +5,5 @@ edition = "2021"
 
 [dependencies]
 serde = { version = "1.0.195", features = ["derive"] }
+time = { version = "0.3.31", features = ["serde", "parsing"] }
 uuid = { version = "1.6.1", features = ["v4", "fast-rng", "serde"] }

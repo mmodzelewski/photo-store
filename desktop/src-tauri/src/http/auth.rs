@@ -3,10 +3,12 @@ use log::debug;
 
 use crate::error::Result;
 
-pub async fn login(data: &LoginRequest) -> Result<LoginResponse> {
-    let client = reqwest::Client::new();
+use super::HttpClient;
+
+pub async fn login(http_client: HttpClient, data: &LoginRequest) -> Result<LoginResponse> {
+    let client = http_client.client;
     let response = client
-        .post("http://localhost:3000/login")
+        .post(format!("{}/login", http_client.url))
         .header("Content-Type", "application/json")
         .json(&data)
         .send()

@@ -11,8 +11,9 @@ use crate::image::image_protocol::image_protocol_handler;
 use database::Database;
 use error::{Error, Result};
 use handlers::AppState;
+use http::HttpClient;
 use log::debug;
-use std::fs;
+use std::{fs, sync::Mutex};
 use tauri::Manager;
 
 fn main() {
@@ -39,6 +40,7 @@ fn main() {
             update_scopes(app)?;
             app.manage(AppState {
                 user_data: Default::default(),
+                http_client: Mutex::new(HttpClient::new("http://localhost:3000")),
             });
             return Ok(());
         })

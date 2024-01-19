@@ -1,7 +1,8 @@
 use crate::database::Database;
 use crate::error::{Error, Result};
+use crate::http::{auth, self};
 use base64ct::{Base64, Encoding};
-use dtos::auth::{LoginRequest, LoginResponse};
+use dtos::auth::LoginRequest;
 use dtos::file::{FileMetadata, FilesUploadRequest};
 use log::debug;
 use reqwest::multipart::Part;
@@ -212,7 +213,6 @@ pub(crate) async fn sync_images(
     let user_data = { app_state.user_data.lock().unwrap().clone() };
     let user_data = user_data.ok_or(Error::Generic("User is not logged in".to_owned()))?;
 
-    let client = reqwest::Client::new();
     let descriptors = database.get_indexed_images()?;
     let image_metadata = descriptors
         .iter()
@@ -230,8 +230,11 @@ pub(crate) async fn sync_images(
     };
     debug!("Sending metadata: {:?}", body);
 
+    let http_client = { app_state.http_client.lock().unwrap().clone() };
+    let client = http_client.client;
+
     let response = client
-        .post(format!("http://localhost:3000/files/metadata"))
+        .post(format!("{}/files/metadata", http_client.url))
         .header("Content-Type", "application/json")
         .header("Authorization", &user_data.auth_token)
         .body(serde_json::to_string(&body).unwrap())
@@ -253,7 +256,7 @@ pub(crate) async fn sync_images(
         );
         println!("Sending file: {:?}", &desc.path);
         let res = client
-            .post(format!("http://localhost:3000/files/{}/data", desc.uuid))
+            .post(format!("{}/files/{}/data", http_client.url, desc.uuid))
             .header("Authorization", &user_data.auth_token)
             .multipart(form)
             .send()
@@ -277,18 +280,9 @@ pub(crate) async fn login(
 ) -> Result<()> {
     debug!("Logging in");
 
-    let client = reqwest::Client::new();
     let body = LoginRequest { username, password };
-    let response = client
-        .post("http://localhost:3000/login")
-        .header("Content-Type", "application/json")
-        .json(&body)
-        .send()
-        .await
-        .unwrap();
-    debug!("{:?}", response);
-
-    let response = response.json::<LoginResponse>().await.unwrap();
+    let http_client = { state.http_client.lock().unwrap().clone() };
+    let response = auth::login(http_client, &body).await?;
 
     *state.user_data.lock().unwrap() = Some(UserData {
         auth_token: response.auth_token,
@@ -299,6 +293,7 @@ pub(crate) async fn login(
 
 pub(crate) struct AppState {
     pub user_data: Mutex<Option<UserData>>,
+    pub http_client: Mutex<http::HttpClient>,
 }
 
 #[derive(Clone)]

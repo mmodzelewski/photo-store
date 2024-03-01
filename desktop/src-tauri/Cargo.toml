@@ -13,24 +13,24 @@ edition = "2021"
 tauri-build = { version = "1.5.1", features = [] }
 
 [dependencies]
-tauri = { version = "1.5.4", features = [ "path-all", "dialog-open", "protocol-asset"] }
+tauri = { version = "1.6.1", features = [ "path-all", "dialog-open", "protocol-asset"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-reqwest = { version = "0.11.18", features = ["multipart", "json"] }
+reqwest = { version = "0.11.24", features = ["multipart", "json"] }
 rusqlite = { version = "0.30.0", features = ["bundled", "uuid", "time"] }
-rusqlite_migration = "1.0.2"
-thiserror = "1.0.40"
-log = "0.4.19"
-env_logger = "0.10.0"
-walkdir = "2.3.3"
-uuid = { version = "1.4.0", features = ["v4", "fast-rng", "serde"] }
+rusqlite_migration = "1.1.0"
+thiserror = "1.0.57"
+log = "0.4.21"
+env_logger = "0.10.2"
+walkdir = "2.4.0"
+uuid = { version = "1.7.0", features = ["v4", "fast-rng", "serde"] }
 fast_image_resize = "2.7.3"
-image = "0.24.6"
+image = "0.24.9"
 kamadak-exif = "0.5.5"
-time = { version = "0.3.23", features = ["serde"] }
-sha2 = "0.10.7"
+time = { version = "0.3.34", features = ["serde"] }
+sha2 = "0.10.8"
 base64ct = { version = "1.6.0", features = ["std"] }
-url = "2.4.0"
+url = "2.5.0"
 dtos = { version = "0.1.0", path = "../../crates/dtos" }
 
 [features]

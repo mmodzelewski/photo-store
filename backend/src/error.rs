@@ -19,6 +19,8 @@ pub enum Error {
     PasswordHashingError(String),
     #[error("Configuration error: {0}")]
     ConfigurationError(String),
+    #[error("Crypto error: {0}")]
+    CryptoError(#[from] crypto::error::Error),
 }
 
 impl IntoResponse for Error {

@@ -15,9 +15,9 @@ aws-sdk-s3 = "1.17.0"
 axum = { version = "0.7.4", features = ["multipart"] }
 base64ct = { version = "1.6.0", features = ["std"] }
 config = "0.13.4"
+crypto = { version = "0.1.0", path = "../crates/crypto" }
 dtos = { version = "0.1.0", path = "../crates/dtos" }
 serde = { version = "1.0.197", features = ["derive"] }
-sha2 = "0.10.8"
 sqlx = { version = "0.7.3", features = ["runtime-tokio", "tls-native-tls", "postgres", "uuid", "time", "migrate"] }
 thiserror = "1.0.57"
 time = { version = "0.3.34", features = ["parsing", "serde"] }
@@ -26,7 +26,7 @@ toml = "0.8.10"
 tower-http = { version = "0.5.2", features = ["limit"] }
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
-uuid = { version = "1.7.0", features = ["v4", "fast-rng", "serde"] }
+uuid = { workspace = true }
 
 [dev-dependencies]
 anyhow = "1.0.80"

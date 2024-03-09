@@ -7,6 +7,7 @@ across multiple platforms.
 ### Todo
 
 - [x] Cargo workspace for sharing code between apps?
+- [ ] End-to-end encryption
 
 #### Backend
 

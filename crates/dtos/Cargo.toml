@@ -6,4 +6,4 @@ edition = "2021"
 [dependencies]
 serde = { version = "1.0.197", features = ["derive"] }
 time = { version = "0.3.34", features = ["serde", "parsing"] }
-uuid = { version = "1.7.0", features = ["v4", "fast-rng", "serde"] }
+uuid = { workspace = true, features = ["serde"] }

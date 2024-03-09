@@ -23,7 +23,7 @@ thiserror = "1.0.57"
 log = "0.4.21"
 env_logger = "0.10.2"
 walkdir = "2.4.0"
-uuid = { version = "1.7.0", features = ["v4", "fast-rng", "serde"] }
+uuid = { workspace = true }
 fast_image_resize = "2.7.3"
 image = "0.24.9"
 kamadak-exif = "0.5.5"

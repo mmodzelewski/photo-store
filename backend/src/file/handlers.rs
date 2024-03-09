@@ -1,19 +1,15 @@
-use aes_gcm::aead::consts::U12;
-use aes_gcm::Nonce;
-use aes_gcm::{aead::Aead, Aes256Gcm, Key, KeyInit};
 use aws_config::BehaviorVersion;
 use aws_sdk_s3::primitives::ByteStream;
-use axum::body::Bytes;
 use axum::{
     extract::{multipart::Field, Multipart, Path, State},
     Json,
 };
-use base64ct::{Base64, Encoding};
-use dtos::file::FilesUploadRequest;
-use sha2::{Digest, Sha256};
 use time::OffsetDateTime;
 use tracing::{debug, error, warn};
 use uuid::Uuid;
+
+use crypto::CryptoFileDesc;
+use dtos::file::FilesUploadRequest;
 
 use crate::config::StorageConfig;
 use crate::{
@@ -134,6 +130,20 @@ pub(super) async fn upload_file(
     };
 }
 
+impl CryptoFileDesc for File {
+    fn uuid(&self) -> Uuid {
+        self.uuid
+    }
+
+    fn key(&self) -> Option<&str> {
+        self.key.as_deref()
+    }
+
+    fn sha256(&self) -> &str {
+        &self.sha256
+    }
+}
+
 async fn upload(file: &File, field: Field<'_>, config: &StorageConfig) -> Result<()> {
     debug!("Uploading file {} data", file.uuid);
 
@@ -158,9 +168,9 @@ async fn upload(file: &File, field: Field<'_>, config: &StorageConfig) -> Result
         Error::FileUploadError(format!("Could not read field bytes {}", e))
     })?;
 
-    verify_data_hash(file, &data)?;
+    crypto::verify_data_hash(file, &data)?;
 
-    let (encrypted_data, encrypted_data_hash) = encrypt_data(file, data)?;
+    let (encrypted_data, encrypted_data_hash) = crypto::encrypt_data(file, data)?;
 
     let file_key = format!("files/{}/{}/original", file.owner_id, file.uuid);
     let result = client
@@ -181,58 +191,4 @@ async fn upload(file: &File, field: Field<'_>, config: &StorageConfig) -> Result
 
     debug!("File {} upload result: {:?}", file.uuid, result);
     return Ok(());
-}
-
-fn encrypt_data(file: &File, data: Bytes) -> Result<(Vec<u8>, String)> {
-    let encryption_key = decode_encryption_key(file)?;
-    let aes256key = Key::<Aes256Gcm>::from_slice(&encryption_key);
-    let cipher = Aes256Gcm::new(aes256key);
-    let nonce = generate_nonce_from_uuid(file.uuid);
-
-    let encrypted_data = cipher.encrypt(&nonce, data.as_ref()).unwrap();
-    let data_hash = hash(&encrypted_data);
-    Ok((encrypted_data, data_hash))
-}
-
-fn decode_encryption_key(file: &File) -> Result<Vec<u8>> {
-    let encryption_key = file
-        .key
-        .as_ref()
-        .ok_or(Error::FileUploadError(format!(
-            "Missing encryption key for file {}",
-            file.uuid
-        )))
-        .and_then(|k| {
-            Base64::decode_vec(k).map_err(|e| {
-                Error::FileUploadError(format!(
-                    "Could not decode encryption key for file {}, error {}",
-                    file.uuid, e
-                ))
-            })
-        })?;
-    Ok(encryption_key)
-}
-
-fn verify_data_hash(file: &File, data: &Bytes) -> Result<()> {
-    let data_hash = hash(&data);
-    if data_hash != file.sha256 {
-        return Err(Error::FileUploadError(format!(
-            "File {} hash mismatch, expected {}, got {}",
-            file.uuid, file.sha256, data_hash
-        )));
-    }
-    return Ok(());
-}
-
-fn hash(data: &[u8]) -> String {
-    let hash = Sha256::digest(data);
-    let encoded = Base64::encode_string(&hash);
-    return encoded;
-}
-
-fn generate_nonce_from_uuid(uuid: Uuid) -> Nonce<U12> {
-    let uuid_bytes = uuid.as_bytes();
-    let hash = Sha256::digest(uuid_bytes);
-    let nonce_bytes = &hash[0..12];
-    Nonce::clone_from_slice(nonce_bytes)
 }

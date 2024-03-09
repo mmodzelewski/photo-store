@@ -1,6 +1,6 @@
 use crate::database::Database;
 use crate::error::{Error, Result};
-use crate::http::{auth, self};
+use crate::http::{self, auth};
 use base64ct::{Base64, Encoding};
 use dtos::auth::LoginRequest;
 use dtos::file::{FileMetadata, FilesUploadRequest};

@@ -54,7 +54,7 @@ pub(crate) async fn save_images_dirs(
     debug!("Start indexing");
     let descriptors = index_files(&files, &database)?;
     debug!("Indexing took {:?}", current_time.elapsed().unwrap());
-    app_handle.emit_all(
+    app_handle.emit(
         "files-indexed",
         FilesIndexed {
             total: descriptors.len(),
@@ -68,8 +68,9 @@ pub(crate) async fn save_images_dirs(
 
 fn generate_thumbnails(files: &Vec<FileDesc>, app_handle: &AppHandle) -> Result<()> {
     let thumbnails_dir = app_handle
-        .path_resolver()
+        .path()
         .app_data_dir()
+        .ok()
         .ok_or(Error::Generic("Cannot get app data directory".to_owned()))?;
     let thumbnails_dir = thumbnails_dir.join("thumbnails");
     fs::create_dir_all(&thumbnails_dir).unwrap();
@@ -83,7 +84,7 @@ fn generate_thumbnails(files: &Vec<FileDesc>, app_handle: &AppHandle) -> Result<
             .to_str()
             .unwrap_or("")
             .to_owned();
-        app_handle.emit_all(
+        app_handle.emit(
             "thumbnails-generated",
             ThumbnailsGenerated {
                 done: done + 1,

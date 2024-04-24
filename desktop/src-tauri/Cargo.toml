@@ -9,11 +9,15 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lib]
+name = "photo_store_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
 [build-dependencies]
-tauri-build = { version = "1.5.1", features = [] }
+tauri-build = { version = "2.0.0-beta", features = [] }
 
 [dependencies]
-tauri = { version = "1.6.1", features = [ "path-all", "dialog-open", "protocol-asset"] }
+tauri = { version = "2.0.0-beta", features = [ "protocol-asset"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 reqwest = { version = "0.11.24", features = ["multipart", "json"] }
@@ -32,6 +36,7 @@ sha2 = "0.10.8"
 base64ct = { version = "1.6.0", features = ["std"] }
 url = "2.5.0"
 dtos = { version = "0.1.0", path = "../../crates/dtos" }
+tauri-plugin-dialog = "2.0.0-beta.6"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem

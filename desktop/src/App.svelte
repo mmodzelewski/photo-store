@@ -1,7 +1,7 @@
 <script lang="ts">
     import Button from "@components/Button.svelte";
     import { navigation } from "./navigation";
-    import { invoke } from "@tauri-apps/api";
+    import { invoke } from "@tauri-apps/api/core";
 
     let dialog: HTMLDialogElement;
     let username: string;

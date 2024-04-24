@@ -13,11 +13,12 @@
     "prepare": "cd .. && husky install desktop/.husky"
   },
   "dependencies": {
-    "@tauri-apps/api": "^1.5.3"
+    "@tauri-apps/api": "2.0.0-beta.2",
+    "@tauri-apps/plugin-dialog": "2.0.0-beta.2"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^3.0.1",
-    "@tauri-apps/cli": "^1.5.10",
+    "@tauri-apps/cli": "2.0.0-beta.13",
     "@tsconfig/svelte": "^5.0.2",
     "@types/node": "^20.10.6",
     "autoprefixer": "^10.4.16",
@@ -38,7 +39,7 @@
   },
   "volta": {
     "node": "20.10.0",
-    "pnpm": "8.13.1"
+    "pnpm": "9.0.5"
   },
   "lint-staged": {
     "src/**/*.{js,ts,svelte,css}": [

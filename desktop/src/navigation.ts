@@ -1,7 +1,7 @@
 import { writable } from "svelte/store";
 import IntroPage from "@pages/IntroPage.svelte";
 import GalleryPage from "@pages/GalleryPage.svelte";
-import { invoke } from "@tauri-apps/api";
+import { invoke } from "@tauri-apps/api/core";
 
 async function createNavigation() {
     const hasDirs = await invoke("has_images_dirs");

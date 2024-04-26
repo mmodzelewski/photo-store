@@ -5,7 +5,7 @@ members = [
     "backend",
     "crates/crypto",
     "crates/dtos",
-    "desktop/src-tauri",
+    "clients/src-tauri",
 ]
 
 [workspace.dependencies]

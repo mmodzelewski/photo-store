@@ -50,14 +50,12 @@ fn decode_encryption_key<File: CryptoFileDesc>(file: &File) -> error::Result<Vec
     Ok(encryption_key)
 }
 
-pub fn verify_data_hash<File: CryptoFileDesc>(file: &File, data: &Bytes) -> error::Result<()> {
+pub fn verify_data_hash(uuid: Uuid, sha256: &str, data: &Bytes) -> error::Result<()> {
     let data_hash = hash(&data);
-    if data_hash != file.sha256() {
+    if data_hash != sha256 {
         return Err(Error::EncryptionError(format!(
             "File {} hash mismatch, expected {}, got {}",
-            file.uuid(),
-            file.sha256(),
-            data_hash
+            uuid, sha256, data_hash
         )));
     }
     return Ok(());

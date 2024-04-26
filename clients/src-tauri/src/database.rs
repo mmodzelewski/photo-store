@@ -30,7 +30,8 @@ impl Database {
                     path TEXT NOT NULL UNIQUE,
                     uuid BLOB NOT NULL UNIQUE,
                     date TEXT NOT NULL,
-                    sha256 TEXT NOT NULL
+                    sha256 TEXT NOT NULL,
+                    key TEXT NOT NULL
                 );",
             ),
         ]);
@@ -86,10 +87,11 @@ impl Database {
         let tx = conn.transaction()?;
 
         {
-            let mut stmt =
-                tx.prepare("INSERT INTO file (path, uuid, date, sha256) VALUES (?1, ?2, ?3, ?4)")?;
+            let mut stmt = tx.prepare(
+                "INSERT INTO file (path, uuid, date, sha256, key) VALUES (?1, ?2, ?3, ?4, ?5)",
+            )?;
             for desc in descriptors {
-                stmt.execute((&desc.path, desc.uuid, desc.date, &desc.sha256))?;
+                stmt.execute((&desc.path, desc.uuid, desc.date, &desc.sha256, &desc.key))?;
             }
         }
 
@@ -100,13 +102,14 @@ impl Database {
     pub fn get_indexed_images(&self) -> Result<Vec<FileDesc>> {
         let conn = self.get_connection()?;
         let mut statement =
-            conn.prepare("SELECT path, uuid, date, sha256 FROM file ORDER BY date DESC")?;
+            conn.prepare("SELECT path, uuid, date, sha256, key FROM file ORDER BY date DESC")?;
         let rows = statement.query_map([], |row| {
             Ok(FileDesc {
                 path: row.get(0)?,
                 uuid: row.get(1)?,
                 date: row.get(2)?,
                 sha256: row.get(3)?,
+                key: row.get(4)?,
             })
         })?;
         let mut descriptors = Vec::new();

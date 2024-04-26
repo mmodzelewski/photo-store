@@ -20,6 +20,8 @@ pub enum Error {
     Generic(String),
     #[error("Runtime error: {0}")]
     Runtime(String),
+    #[error("Crypto error: {0}")]
+    CryptoError(#[from] crypto::error::Error),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

@@ -17,6 +17,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2.0.0-beta", features = [] }
 
 [dependencies]
+aes-gcm = "0.10.3"
 tauri = { version = "2.0.0-beta", features = [ "protocol-asset"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -37,6 +38,7 @@ base64ct = { version = "1.6.0", features = ["std"] }
 url = "2.5.0"
 dtos = { version = "0.1.0", path = "../../crates/dtos" }
 tauri-plugin-dialog = "2.0.0-beta.6"
+crypto = { version = "0.1.0", path = "../../crates/crypto" }
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem

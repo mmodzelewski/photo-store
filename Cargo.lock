@@ -3913,7 +3913,9 @@ dependencies = [
 name = "photo-store"
 version = "0.0.0"
 dependencies = [
+ "aes-gcm",
  "base64ct",
+ "crypto",
  "dtos",
  "env_logger",
  "fast_image_resize",

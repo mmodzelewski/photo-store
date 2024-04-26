@@ -1,21 +1,27 @@
-use crate::database::Database;
-use crate::error::{Error, Result};
-use crate::http::{self, auth};
+use aes_gcm::{Aes256Gcm, Key, KeyInit};
+use std::path::Path;
+use std::{fs, sync::Mutex};
+
 use base64ct::{Base64, Encoding};
-use dtos::auth::LoginRequest;
-use dtos::file::{FileMetadata, FilesUploadRequest};
 use log::debug;
 use reqwest::multipart::Part;
 use serde::Serialize;
+use sha2::digest::crypto_common::rand_core::OsRng;
 use sha2::{Digest, Sha256};
-use std::path::Path;
-use std::{fs, sync::Mutex};
 use tauri::{AppHandle, Manager};
 use time::format_description::FormatItem;
 use time::macros::format_description;
 use time::OffsetDateTime;
 use uuid::Uuid;
 use walkdir::{DirEntry, WalkDir};
+
+use crypto::{encrypt_data, CryptoFileDesc};
+use dtos::auth::LoginRequest;
+use dtos::file::{FileMetadata, FilesUploadRequest};
+
+use crate::database::Database;
+use crate::error::{Error, Result};
+use crate::http::{self, auth};
 
 const DATE_TIME_FORMAT: &[FormatItem<'static>] = format_description!(
     "[year]-[month]-[day] [hour]:[minute]:[second] \"[offset_hour]:[offset_minute]\""
@@ -109,11 +115,14 @@ fn index_files(files: &Vec<DirEntry>, database: &tauri::State<Database>) -> Resu
         let sha256 = hash(file.path())?;
 
         let date = get_date(file, &path)?;
+        let enc_key: Key<Aes256Gcm> = Aes256Gcm::generate_key(OsRng);
+        let encoded_key = Base64::encode_string(&enc_key);
         descriptors.push(FileDesc {
             path,
             uuid: Uuid::new_v4(),
             date,
             sha256,
+            key: encoded_key,
         });
     }
     debug!("Saving to db");
@@ -165,6 +174,21 @@ pub(crate) struct FileDesc {
     pub uuid: Uuid,
     pub date: OffsetDateTime,
     pub sha256: String,
+    pub key: String,
+}
+
+impl CryptoFileDesc for FileDesc {
+    fn uuid(&self) -> Uuid {
+        return self.uuid;
+    }
+
+    fn key(&self) -> Option<&str> {
+        return Some(&self.key);
+    }
+
+    fn sha256(&self) -> &str {
+        return &self.sha256;
+    }
 }
 
 fn get_files_from_dir(dir: &str) -> Result<Vec<DirEntry>> {
@@ -247,18 +271,21 @@ pub(crate) async fn sync_images(
     debug!("Sending files");
     for desc in descriptors {
         let file = fs::read(&desc.path).unwrap();
+        let (encrypted_data, encrypted_data_hash) = encrypt_data(&desc, file.into())?;
 
         let form = reqwest::multipart::Form::new().part(
             "file",
-            Part::bytes(file)
+            Part::bytes(encrypted_data)
                 .file_name(desc.path.to_owned())
                 .mime_str("image/jpeg")
                 .unwrap(),
         );
+
         println!("Sending file: {:?}", &desc.path);
         let res = client
             .post(format!("{}/files/{}/data", http_client.url, desc.uuid))
             .header("Authorization", &user_data.auth_token)
+            .header("sha256_checksum", encrypted_data_hash)
             .multipart(form)
             .send()
             .await;

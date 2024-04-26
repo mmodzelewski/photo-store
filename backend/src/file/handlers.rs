@@ -1,5 +1,6 @@
 use aws_config::BehaviorVersion;
 use aws_sdk_s3::primitives::ByteStream;
+use axum::http::HeaderMap;
 use axum::{
     extract::{multipart::Field, Multipart, Path, State},
     Json,
@@ -75,6 +76,7 @@ pub(super) async fn upload_file(
     State(state): State<AppState>,
     ctx: Ctx,
     Path(file_id): Path<Uuid>,
+    headers: HeaderMap,
     mut multipart: Multipart,
 ) -> Result<()> {
     debug!(
@@ -98,6 +100,17 @@ pub(super) async fn upload_file(
             file.uploader_id
         )));
     }
+    let sha256 = headers
+        .get("sha256_checksum")
+        .ok_or_else(|| Error::FileUploadError("Missing sha256 checksum header".to_string()))?;
+    if sha256.is_empty() {
+        return Err(Error::FileUploadError(
+            "Empty sha256 checksum header".to_string(),
+        ));
+    }
+    let sha256 = sha256.to_str().map_err(|e| {
+        Error::FileUploadError(format!("Could not parse sha256 checksum header {}", e))
+    })?;
 
     return match file.state {
         FileState::New => {
@@ -111,7 +124,7 @@ pub(super) async fn upload_file(
             })? {
                 debug!("Got field: {:?}", &field);
                 if Some("file") == field.name() {
-                    upload(&file, field, &state.config.storage).await?;
+                    upload(&file, field, sha256, &state.config.storage).await?;
                     FileRepository::update_state(&db, &file_id, FileState::Synced).await?;
                 }
             }
@@ -144,7 +157,7 @@ impl CryptoFileDesc for File {
     }
 }
 
-async fn upload(file: &File, field: Field<'_>, config: &StorageConfig) -> Result<()> {
+async fn upload(file: &File, field: Field<'_>, sha256: &str, config: &StorageConfig) -> Result<()> {
     debug!("Uploading file {} data", file.uuid);
 
     let aws_config = aws_config::defaults(BehaviorVersion::latest())
@@ -168,9 +181,7 @@ async fn upload(file: &File, field: Field<'_>, config: &StorageConfig) -> Result
         Error::FileUploadError(format!("Could not read field bytes {}", e))
     })?;
 
-    crypto::verify_data_hash(file, &data)?;
-
-    let (encrypted_data, encrypted_data_hash) = crypto::encrypt_data(file, data)?;
+    crypto::verify_data_hash(file.uuid, sha256, &data)?;
 
     let file_key = format!("files/{}/{}/original", file.owner_id, file.uuid);
     let result = client
@@ -178,8 +189,8 @@ async fn upload(file: &File, field: Field<'_>, config: &StorageConfig) -> Result
         .bucket(&config.bucket_name)
         .key(&file_key)
         .content_type(content_type)
-        .checksum_sha256(encrypted_data_hash)
-        .body(ByteStream::from(encrypted_data))
+        .checksum_sha256(sha256)
+        .body(ByteStream::from(data))
         .send()
         .await
         .map_err(|e| {

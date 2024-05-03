@@ -20,6 +20,13 @@ mod user;
 pub struct AppState {
     db: DbPool,
     config: Config,
+    google_auth: auth::google::GoogleAuth,
+    http_client: HttpClient,
+}
+
+#[derive(Clone)]
+pub struct HttpClient {
+    client: reqwest::Client,
 }
 
 #[tokio::main]
@@ -30,7 +37,16 @@ async fn main() -> Result<()> {
 
     let config = Config::load()?;
     let pool = database::init_db(&config.database).await?;
-    let state = AppState { db: pool, config };
+    let google_auth = auth::google::GoogleAuth::new();
+    let http_client = HttpClient {
+        client: reqwest::Client::new(),
+    };
+    let state = AppState {
+        db: pool,
+        config,
+        google_auth,
+        http_client,
+    };
 
     let file_routes = file::routes(state.clone())
         .route_layer(axum::middleware::from_fn(auth::middleware::require_auth))
@@ -41,7 +57,7 @@ async fn main() -> Result<()> {
 
     let app = Router::new()
         .merge(file_routes)
-        .merge(auth::routes(state.clone()))
+        .nest("/auth", auth::routes(state.clone()))
         .merge(user::routes(state.clone()));
 
     info!("Listening on localhost:3000");

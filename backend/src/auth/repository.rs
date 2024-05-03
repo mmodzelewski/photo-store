@@ -1,5 +1,6 @@
 use uuid::Uuid;
 
+use crate::auth::AuthorizationRequest;
 use crate::database::DbPool;
 use crate::error::Result;
 
@@ -33,5 +34,35 @@ impl AuthRepository {
         })?;
 
         Ok(row.user_id)
+    }
+
+    pub async fn save_auth_request(db: &DbPool, auth_request: AuthorizationRequest) -> Result<()> {
+        let query = sqlx::query!(
+            r#"INSERT INTO authorization_requests (
+                state, pkce
+            ) VALUES ($1, $2)"#,
+            auth_request.state,
+            auth_request.pkce,
+        );
+
+        query.execute(db).await.map_err(|e| {
+            crate::error::Error::DbError(format!("Could not save auth request: {}", e))
+        })?;
+
+        Ok(())
+    }
+
+    pub async fn get_auth_request_by_state(db: &DbPool, state: &str) -> Result<AuthorizationRequest> {
+        let query = sqlx::query_as!(
+            AuthorizationRequest,
+            r#"SELECT state, pkce FROM authorization_requests WHERE state = $1"#,
+            state,
+        );
+
+        let auth_request = query.fetch_one(db).await.map_err(|e| {
+            crate::error::Error::DbError(format!("Could not get auth request: {}", e))
+        })?;
+
+        Ok(auth_request)
     }
 }

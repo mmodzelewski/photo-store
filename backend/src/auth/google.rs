@@ -1,24 +1,29 @@
 use std::env;
 
 use axum::extract::{Query, State};
+use axum::response::Redirect;
 use axum::Json;
-use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
+use dtos::auth::LoginResponse;
+use jsonwebtoken::{Algorithm, decode, DecodingKey, Validation};
+use oauth2::{
+    AuthorizationCode, AuthUrl, Client, ClientId, ClientSecret, CsrfToken, ExtraTokenFields,
+    PkceCodeChallenge, PkceCodeVerifier, RedirectUrl, Scope, StandardRevocableToken,
+    StandardTokenResponse, TokenUrl,
+};
 use oauth2::basic::{
     BasicErrorResponse, BasicRevocationErrorResponse, BasicTokenIntrospectionResponse,
     BasicTokenType,
 };
 use oauth2::reqwest::async_http_client;
-use oauth2::{
-    AuthUrl, AuthorizationCode, Client, ClientId, ClientSecret, CsrfToken, ExtraTokenFields,
-    PkceCodeChallenge, PkceCodeVerifier, RedirectUrl, Scope, StandardRevocableToken,
-    StandardTokenResponse, TokenUrl,
-};
 use serde::{Deserialize, Serialize};
+use tracing::debug;
+use uuid::Uuid;
 
-use crate::auth::repository::AuthRepository;
-use crate::auth::AuthorizationRequest;
-use crate::error::Result;
 use crate::AppState;
+use crate::auth::AuthorizationRequest;
+use crate::auth::repository::AuthRepository;
+use crate::error::Result;
+use crate::user::{register_or_get_with_external_provider, AccountProvider};
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 struct IdToken {
@@ -64,23 +69,16 @@ impl GoogleAuth {
             auth_url,
             Some(token_url),
         )
-        .set_redirect_uri(
-            RedirectUrl::new("http://localhost:3000/redirect".to_string())
-                .expect("Invalid redirect URL"),
-        );
+            .set_redirect_uri(
+                RedirectUrl::new("http://localhost:5173/auth/google/redirect".to_string())
+                    .expect("Invalid redirect URL"),
+            );
 
         return GoogleAuth { client_id, client };
     }
 }
 
-#[derive(Serialize)]
-pub(crate) struct AuthUrlResponse {
-    url: String,
-}
-
-pub(crate) async fn init_authentication(
-    State(state): State<AppState>,
-) -> Result<Json<AuthUrlResponse>> {
+pub(crate) async fn init_authentication(State(state): State<AppState>) -> Result<Redirect> {
     let client = &state.google_auth.client;
     let db = &state.db;
 
@@ -100,11 +98,9 @@ pub(crate) async fn init_authentication(
             pkce: pkce_code_verifier.secret().clone(),
         },
     )
-    .await?;
+        .await?;
 
-    Ok(Json(AuthUrlResponse {
-        url: authorize_url.to_string(),
-    }))
+    Ok(Redirect::to(&authorize_url.to_string()))
 }
 
 #[derive(Deserialize)]
@@ -127,7 +123,7 @@ struct Claims {
 pub(crate) async fn complete_authentication(
     State(state): State<AppState>,
     auth_response: Query<AuthResponse>,
-) -> Result<String> {
+) -> Result<Json<LoginResponse>> {
     let client = &state.google_auth.client;
     let db = &state.db;
     let code = AuthorizationCode::new(auth_response.code.clone());
@@ -149,7 +145,15 @@ pub(crate) async fn complete_authentication(
     validation.insecure_disable_signature_validation();
     let token_data =
         decode::<Claims>(id_token, &DecodingKey::from_secret(b""), &validation).unwrap();
-    // todo(mm): handle token_data
 
-    Ok("OK".to_string())
+    let user_id = register_or_get_with_external_provider(db, &token_data.claims.sub, &AccountProvider::Google).await?;
+    debug!("User id: {:?}", user_id);
+
+    let auth_token = Uuid::new_v4().to_string();
+    AuthRepository::save_auth_token(db, &user_id.0, &auth_token).await?;
+
+    return Ok(Json(LoginResponse {
+        user_id: user_id.0,
+        auth_token,
+    }));
 }

@@ -1,18 +1,19 @@
 use axum::{
     body::Body,
     extract::{FromRequestParts, State},
-    http::{request::Parts, Request},
+    http::{Request, request::Parts},
     middleware::Next,
     response::Response,
 };
 use tracing::debug;
 
-use super::error::Error as AuthError;
 use crate::{
+    AppState,
     ctx::Ctx,
     error::{Error, Result},
-    AppState,
 };
+
+use super::error::Error as AuthError;
 
 pub(crate) async fn require_auth(
     ctx: Result<Ctx>,

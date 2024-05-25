@@ -1,5 +1,6 @@
 use axum::Router;
 use tokio::net::TcpListener;
+use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
 use tracing_subscriber::EnvFilter;
 
@@ -58,7 +59,8 @@ async fn main() -> Result<()> {
     let app = Router::new()
         .merge(file_routes)
         .nest("/auth", auth::routes(state.clone()))
-        .merge(user::routes(state.clone()));
+        .merge(user::routes(state.clone()))
+        .layer(CorsLayer::new().allow_origin(Any));
 
     info!("Listening on localhost:3000");
     let listener = TcpListener::bind("0.0.0.0:3000").await.unwrap();

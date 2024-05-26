@@ -1,5 +1,3 @@
-pub(crate) mod auth;
-
 #[derive(Clone)]
 pub(crate) struct HttpClient {
     pub client: reqwest::Client,

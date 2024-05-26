@@ -17,6 +17,7 @@ base64ct = { version = "1.6.0", features = ["std"] }
 config = "0.13.4"
 crypto = { version = "0.1.0", path = "../crates/crypto" }
 dtos = { version = "0.1.0", path = "../crates/dtos" }
+http = "1.1.0"
 jsonwebtoken = "9.3.0"
 oauth2 = "4.4.2"
 reqwest = { version = "0.12.4", features = ["json", "blocking"] }

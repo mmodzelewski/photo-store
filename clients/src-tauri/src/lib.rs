@@ -17,12 +17,13 @@ use tauri::Manager;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
             handlers::sync_images,
             handlers::save_images_dirs,
             handlers::has_images_dirs,
             handlers::get_images,
-            handlers::login,
+            handlers::authenticate,
         ])
         .register_uri_scheme_protocol("image", image_protocol_handler)
         .setup(|app| {

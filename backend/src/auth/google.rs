@@ -3,27 +3,28 @@ use std::env;
 use axum::extract::{Query, State};
 use axum::response::Redirect;
 use axum::Json;
-use dtos::auth::LoginResponse;
-use jsonwebtoken::{Algorithm, decode, DecodingKey, Validation};
-use oauth2::{
-    AuthorizationCode, AuthUrl, Client, ClientId, ClientSecret, CsrfToken, ExtraTokenFields,
-    PkceCodeChallenge, PkceCodeVerifier, RedirectUrl, Scope, StandardRevocableToken,
-    StandardTokenResponse, TokenUrl,
-};
+use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use oauth2::basic::{
     BasicErrorResponse, BasicRevocationErrorResponse, BasicTokenIntrospectionResponse,
     BasicTokenType,
 };
 use oauth2::reqwest::async_http_client;
+use oauth2::{
+    AuthUrl, AuthorizationCode, Client, ClientId, ClientSecret, CsrfToken, ExtraTokenFields,
+    PkceCodeChallenge, PkceCodeVerifier, RedirectUrl, Scope, StandardRevocableToken,
+    StandardTokenResponse, TokenUrl,
+};
 use serde::{Deserialize, Serialize};
 use tracing::debug;
 use uuid::Uuid;
 
-use crate::AppState;
-use crate::auth::AuthorizationRequest;
+use dtos::auth::LoginResponse;
+
 use crate::auth::repository::AuthRepository;
+use crate::auth::AuthorizationRequest;
 use crate::error::Result;
 use crate::user::{register_or_get_with_external_provider, AccountProvider};
+use crate::AppState;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 struct IdToken {
@@ -63,16 +64,17 @@ impl GoogleAuth {
         let token_url = TokenUrl::new("https://oauth2.googleapis.com/token".to_string())
             .expect("Invalid token endpoint URL");
 
+        let redirect_url =
+            RedirectUrl::new("http://localhost:5173/auth/google/redirect".to_string())
+                .expect("Invalid redirect URL");
+
         let client = GoogleAuthClient::new(
             google_client_id,
             Some(google_client_secret),
             auth_url,
             Some(token_url),
         )
-            .set_redirect_uri(
-                RedirectUrl::new("http://localhost:5173/auth/google/redirect".to_string())
-                    .expect("Invalid redirect URL"),
-            );
+        .set_redirect_uri(redirect_url);
 
         return GoogleAuth { client_id, client };
     }
@@ -98,7 +100,7 @@ pub(crate) async fn init_authentication(State(state): State<AppState>) -> Result
             pkce: pkce_code_verifier.secret().clone(),
         },
     )
-        .await?;
+    .await?;
 
     Ok(Redirect::to(&authorize_url.to_string()))
 }
@@ -146,7 +148,12 @@ pub(crate) async fn complete_authentication(
     let token_data =
         decode::<Claims>(id_token, &DecodingKey::from_secret(b""), &validation).unwrap();
 
-    let user_id = register_or_get_with_external_provider(db, &token_data.claims.sub, &AccountProvider::Google).await?;
+    let user_id = register_or_get_with_external_provider(
+        db,
+        &token_data.claims.sub,
+        &AccountProvider::Google,
+    )
+    .await?;
     debug!("User id: {:?}", user_id);
 
     let auth_token = Uuid::new_v4().to_string();

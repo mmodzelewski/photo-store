@@ -1,16 +1,16 @@
 use axum::{
     body::Body,
     extract::{FromRequestParts, State},
-    http::{Request, request::Parts},
+    http::{request::Parts, Request},
     middleware::Next,
     response::Response,
 };
 use tracing::debug;
 
 use crate::{
-    AppState,
     ctx::Ctx,
     error::{Error, Result},
+    AppState,
 };
 
 use super::error::Error as AuthError;

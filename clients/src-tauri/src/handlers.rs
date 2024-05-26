@@ -1,7 +1,7 @@
-use aes_gcm::{Aes256Gcm, Key, KeyInit};
 use std::path::Path;
 use std::{fs, sync::Mutex};
 
+use aes_gcm::{Aes256Gcm, Key, KeyInit};
 use base64ct::{Base64, Encoding};
 use log::debug;
 use reqwest::multipart::Part;
@@ -9,19 +9,21 @@ use serde::Serialize;
 use sha2::digest::crypto_common::rand_core::OsRng;
 use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Manager};
+use tauri_plugin_shell::ShellExt;
 use time::format_description::FormatItem;
 use time::macros::format_description;
 use time::OffsetDateTime;
+use tiny_http::{Header, Server};
+use url::Url;
 use uuid::Uuid;
 use walkdir::{DirEntry, WalkDir};
 
 use crypto::{encrypt_data, CryptoFileDesc};
-use dtos::auth::LoginRequest;
 use dtos::file::{FileMetadata, FilesUploadRequest};
 
 use crate::database::Database;
 use crate::error::{Error, Result};
-use crate::http::{self, auth};
+use crate::http;
 
 const DATE_TIME_FORMAT: &[FormatItem<'static>] = format_description!(
     "[year]-[month]-[day] [hour]:[minute]:[second] \"[offset_hour]:[offset_minute]\""
@@ -301,22 +303,50 @@ pub(crate) fn has_images_dirs(database: tauri::State<Database>) -> Result<bool> 
 }
 
 #[tauri::command]
-pub(crate) async fn login(
-    username: String,
-    password: String,
-    state: tauri::State<'_, AppState>,
+pub(crate) async fn authenticate(
+    app_handle: AppHandle,
+    app_state: tauri::State<'_, AppState>,
 ) -> Result<()> {
-    debug!("Logging in");
+    let server = Server::http("127.0.0.1:0").unwrap();
+    let ip = server.server_addr().to_ip().unwrap();
 
-    let body = LoginRequest { username, password };
-    let http_client = { state.http_client.lock().unwrap().clone() };
-    let response = auth::login(http_client, &body).await?;
+    debug!("Listening on 127.0.0.1:{}", ip.port());
+    let redirect_uri = format!("http://127.0.0.1:{}", ip.port());
 
-    *state.user_data.lock().unwrap() = Some(UserData {
-        auth_token: response.auth_token,
-        user_id: response.user_id,
-    });
-    return Ok(());
+    app_handle
+        .shell()
+        .open(
+            format!(
+                "http://localhost:5173/auth/desktop?redirect_uri={}",
+                redirect_uri
+            ),
+            None,
+        )
+        .unwrap();
+
+    if let Ok(request) = server.recv() {
+        let url = Url::parse(&format!("http://localhost{}", request.url())).unwrap();
+
+        let (_, auth_token) = url
+            .query_pairs()
+            .find(|(key, _)| key == "auth_token")
+            .unwrap();
+        let (_, user_id) = url.query_pairs().find(|(key, _)| key == "user_id").unwrap();
+
+        *app_state.user_data.lock().unwrap() = Some(UserData {
+            auth_token: auth_token.to_string(),
+            user_id: user_id.to_string().parse().unwrap(),
+        });
+
+        let done_url = "http://localhost:5173/auth/desktop/complete";
+        let response = tiny_http::Response::empty(303)
+            .with_header(Header::from_bytes(&b"Location"[..], &done_url.as_bytes()[..]).unwrap());
+        request.respond(response).unwrap();
+
+        debug!("Listener closed.");
+    }
+
+    Ok(())
 }
 
 pub(crate) struct AppState {

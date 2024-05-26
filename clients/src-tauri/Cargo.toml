@@ -39,6 +39,8 @@ url = "2.5.0"
 dtos = { version = "0.1.0", path = "../../crates/dtos" }
 tauri-plugin-dialog = "2.0.0-beta.6"
 crypto = { version = "0.1.0", path = "../../crates/crypto" }
+tiny_http = "0.12.0"
+tauri-plugin-shell = "2.0.0-beta"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem

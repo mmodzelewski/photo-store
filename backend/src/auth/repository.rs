@@ -52,7 +52,10 @@ impl AuthRepository {
         Ok(())
     }
 
-    pub async fn get_auth_request_by_state(db: &DbPool, state: &str) -> Result<AuthorizationRequest> {
+    pub async fn get_auth_request_by_state(
+        db: &DbPool,
+        state: &str,
+    ) -> Result<AuthorizationRequest> {
         let query = sqlx::query_as!(
             AuthorizationRequest,
             r#"SELECT state, pkce FROM authorization_requests WHERE state = $1"#,

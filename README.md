@@ -39,10 +39,10 @@ across multiple platforms.
 
 #### Web
 
-- [ ] Project set up
-- [ ] Sign up and login implementation
+- [x] Project set up
+- [x] Sign up and login implementation
 
 #### Mobile
 
-- [ ] Project set up
+- [x] Project set up
 - [ ] Files upload

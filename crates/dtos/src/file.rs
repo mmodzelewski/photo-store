@@ -14,4 +14,5 @@ pub struct FileMetadata {
     #[serde(with = "time::serde::iso8601")]
     pub date: OffsetDateTime,
     pub sha256: String,
+    pub key: String,
 }

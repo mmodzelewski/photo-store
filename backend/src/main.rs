@@ -23,12 +23,6 @@ pub struct AppState {
     db: DbPool,
     config: Config,
     google_auth: auth::google::GoogleAuth,
-    http_client: HttpClient,
-}
-
-#[derive(Clone)]
-pub struct HttpClient {
-    client: reqwest::Client,
 }
 
 #[tokio::main]
@@ -40,14 +34,11 @@ async fn main() -> Result<()> {
     let config = Config::load()?;
     let pool = database::init_db(&config.database).await?;
     let google_auth = auth::google::GoogleAuth::new();
-    let http_client = HttpClient {
-        client: reqwest::Client::new(),
-    };
+
     let state = AppState {
         db: pool,
         config,
         google_auth,
-        http_client,
     };
 
     let file_routes = file::routes(state.clone())

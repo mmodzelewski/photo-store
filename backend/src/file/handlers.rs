@@ -9,7 +9,6 @@ use time::OffsetDateTime;
 use tracing::{debug, error, warn};
 use uuid::Uuid;
 
-use crypto::CryptoFileDesc;
 use dtos::file::FilesUploadRequest;
 
 use crate::config::StorageConfig;
@@ -62,7 +61,7 @@ pub(super) async fn upload_files_metadata(
             sha256: item.sha256,
             owner_id: request.user_id.clone(),
             uploader_id: ctx.user_id(),
-            key: None,
+            enc_key: item.key.clone(),
         };
 
         debug!("Saving file {:?}", &file);
@@ -141,20 +140,6 @@ pub(super) async fn upload_file(
             )))
         }
     };
-}
-
-impl CryptoFileDesc for File {
-    fn uuid(&self) -> Uuid {
-        self.uuid
-    }
-
-    fn key(&self) -> Option<&str> {
-        self.key.as_deref()
-    }
-
-    fn sha256(&self) -> &str {
-        &self.sha256
-    }
 }
 
 async fn upload(file: &File, field: Field<'_>, sha256: &str, config: &StorageConfig) -> Result<()> {

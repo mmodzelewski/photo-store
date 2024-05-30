@@ -10,7 +10,6 @@ pub(super) async fn save_user_with_credentials(
     db: &DbPool,
     user_id: &Uuid,
     user: &super::handlers::UserRegister,
-    enc_key: &str,
 ) -> Result<()> {
     let mut transaction = db
         .begin()
@@ -43,19 +42,6 @@ pub(super) async fn save_user_with_credentials(
         .execute(&mut *transaction)
         .await
         .map_err(|e| Error::DbError(format!("Could not save user account {}", e)))?;
-
-    let query = sqlx::query!(
-        r#"INSERT INTO encryption_key (
-                user_id, key
-            ) VALUES ($1, $2)"#,
-        user_id,
-        enc_key,
-    );
-
-    query
-        .execute(&mut *transaction)
-        .await
-        .map_err(|e| Error::DbError(format!("Could not save encryption key {}", e)))?;
 
     transaction
         .commit()

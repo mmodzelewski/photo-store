@@ -110,6 +110,7 @@ impl Database {
                 date: row.get(2)?,
                 sha256: row.get(3)?,
                 key: row.get(4)?,
+                decoded_key: None,
             })
         })?;
         let mut descriptors = Vec::new();

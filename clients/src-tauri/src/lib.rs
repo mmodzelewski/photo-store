@@ -41,6 +41,7 @@ pub fn run() {
             app.manage(AppState {
                 user_data: Default::default(),
                 http_client: Mutex::new(HttpClient::new("http://localhost:3000")),
+                private_key: Default::default(),
             });
             return Ok(());
         })

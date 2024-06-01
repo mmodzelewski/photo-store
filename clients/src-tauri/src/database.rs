@@ -1,14 +1,16 @@
 use crate::{
     error::{Error, Result},
-    handlers::FileDesc,
+    handlers::{FileDesc, User},
 };
 use log::debug;
 use rusqlite::Connection;
 use rusqlite_migration::{Migrations, M};
 use std::{
+    collections::HashMap,
     path::PathBuf,
     sync::{Mutex, MutexGuard},
 };
+use uuid::Uuid;
 
 pub struct Database {
     connection: Mutex<Connection>,
@@ -18,6 +20,13 @@ impl Database {
     pub fn init(path: PathBuf) -> Result<Database> {
         debug!("Databae initialization");
         let migrations = Migrations::new(vec![
+            M::up(
+                "CREATE TABLE app_settings (
+                    id INTEGER PRIMARY KEY,
+                    key TEXT NOT NULL UNIQUE,
+                    value TEXT NOT NULL
+                );",
+            ),
             M::up(
                 "CREATE TABLE directory (
                     id INTEGER PRIMARY KEY,
@@ -42,6 +51,30 @@ impl Database {
         return Ok(Database {
             connection: Mutex::new(conn),
         });
+    }
+
+    pub fn get_user(&self) -> Result<Option<User>> {
+        let conn = self.get_connection()?;
+
+        let mut statement = conn.prepare("SELECT key, value FROM app_settings")?;
+        let map = statement
+            .query_map([], |row| {
+                let key: String = row.get(0)?;
+                let value: String = row.get(1)?;
+                Ok((key, value))
+            })?
+            .collect::<std::result::Result<HashMap<String, String>, _>>()?;
+        let user_id = map.get("user_id");
+        let user_name = map.get("user_name");
+
+        let user = match (user_id, user_name) {
+            (Some(id), Some(name)) => Some(User {
+                id: Uuid::parse_str(id).map_err(|e| Error::Generic(e.to_string()))?,
+                name: name.clone(),
+            }),
+            _ => None,
+        };
+        Ok(user)
     }
 
     pub fn save_directories(&self, dirs: &[&str]) -> Result<()> {
@@ -126,5 +159,21 @@ impl Database {
             .connection
             .lock()
             .map_err(|err| Error::Generic(err.to_string()));
+    }
+
+    pub(crate) fn save_user(&self, user: &User) -> Result<()> {
+        let mut conn = self.get_connection()?;
+
+        let tx = conn.transaction()?;
+
+        {
+            let mut statement = tx.prepare("INSERT INTO app_settings (key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value=?2")?;
+            statement.execute(("user_id", user.id.to_string()))?;
+            statement.execute(("user_name", user.name.clone()))?;
+        }
+
+        tx.commit()?;
+
+        return Ok(());
     }
 }

@@ -32,7 +32,7 @@ pub fn encrypt_data<File: CryptoFileDesc>(
 
 pub fn decode_encryption_key<File: CryptoFileDesc>(
     key: &str,
-    private_key: &RsaPrivateKey,
+    decrypt_fn: impl Fn(&[u8]) -> error::Result<Vec<u8>>,
     file: &File,
 ) -> error::Result<Key<Aes256Gcm>> {
     let encryption_key = Base64::decode_vec(key)
@@ -43,16 +43,7 @@ pub fn decode_encryption_key<File: CryptoFileDesc>(
                 e
             ))
         })
-        .and_then(|key| {
-            let padding = Oaep::new::<Sha256>();
-            private_key.decrypt(padding, &key).map_err(|e| {
-                Error::EncryptionError(format!(
-                    "Could not decrypt encryption key for file {}, error {}",
-                    file.uuid(),
-                    e
-                ))
-            })
-        })
+        .and_then(|key| decrypt_fn(&key))
         .map(|key| Key::<Aes256Gcm>::clone_from_slice(&key))?;
     Ok(encryption_key)
 }

@@ -1,3 +1,4 @@
+mod auth;
 mod database;
 mod error;
 mod handlers;
@@ -36,12 +37,22 @@ pub fn run() {
             ))?;
             fs::create_dir_all(&path)?;
 
-            app.manage(Database::init(path)?);
+            let database = Database::init(path)?;
+            let user = database.get_user()?;
+            debug!("Logged in user: {:?}", user);
+
+            app.manage(database);
             update_scopes(app)?;
+
+            let auth_ctx = user
+                .as_ref()
+                .map(|user| auth::AuthCtx::load(&user.id))
+                .transpose()?;
+
             app.manage(AppState {
-                user_data: Default::default(),
+                user: Mutex::new(user),
                 http_client: Mutex::new(HttpClient::new("http://localhost:3000")),
-                private_key: Default::default(),
+                auth_ctx: Mutex::new(auth_ctx),
             });
             return Ok(());
         })

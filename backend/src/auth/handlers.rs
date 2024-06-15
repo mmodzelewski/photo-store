@@ -41,11 +41,14 @@ pub(super) async fn login_desktop(
     let auth_token = Uuid::new_v4().to_string();
     AuthRepository::save_auth_token(db, &ctx.user_id(), &auth_token).await?;
 
+    let has_key = AuthRepository::has_key(db, &ctx.user_id()).await?;
+
     let redirect_uri = format!(
-        "{}?auth_token={}&user_id={}",
+        "{}?auth_token={}&user_id={}&key_created={}",
         redirect_uri.redirect_uri,
         auth_token,
-        ctx.user_id()
+        ctx.user_id(),
+        has_key
     );
     Ok(Json(RedirectUri { redirect_uri }))
 }

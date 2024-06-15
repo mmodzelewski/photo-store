@@ -5,7 +5,7 @@ mod handlers;
 mod http;
 mod image;
 
-use crate::image::image_protocol::image_protocol_handler;
+use crate::{auth::AuthCtx, image::image_protocol::image_protocol_handler};
 use database::Database;
 use error::{Error, Result};
 use handlers::AppState;
@@ -46,8 +46,9 @@ pub fn run() {
 
             let auth_ctx = user
                 .as_ref()
-                .map(|user| auth::AuthCtx::load(&user.id))
-                .transpose()?;
+                .map(|user| auth::AuthStore::load(&user.id))
+                .transpose()?
+                .and_then(|store| AuthCtx::from_store(store));
 
             app.manage(AppState {
                 user: Mutex::new(user),

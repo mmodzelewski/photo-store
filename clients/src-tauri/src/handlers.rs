@@ -21,7 +21,7 @@ use walkdir::{DirEntry, WalkDir};
 use crypto::{encrypt_data, CryptoFileDesc};
 use dtos::file::{FileMetadata, FilesUploadRequest};
 
-use crate::auth::AuthCtx;
+use crate::auth::{AuthCtx, AuthStore};
 use crate::database::Database;
 use crate::error::{Error, Result};
 use crate::http;
@@ -364,13 +364,14 @@ pub(crate) async fn authenticate(
             .find(|(key, _)| key == "auth_token")
             .unwrap();
         let (_, user_id) = url.query_pairs().find(|(key, _)| key == "user_id").unwrap();
+        let (_, key_created) = url.query_pairs().find(|(key, _)| key == "key_created").unwrap();
         let user_id = Uuid::parse_str(&user_id).unwrap();
 
-        // todo(mm): get private key from backend and generate only if not found
-        let private_key = crypto::generate_rsa_key();
-        let auth_ctx = AuthCtx::new(auth_token.to_string(), private_key);
+        debug!("key created: {}", key_created);
+        tauri::async_runtime::spawn(get_private_key());
+
+        let auth_ctx = AuthStore::new(auth_token.to_string());
         auth_ctx.save(&user_id)?;
-        app_state.auth_ctx.lock().unwrap().replace(auth_ctx);
 
         let user = User {
             id: user_id,
@@ -388,6 +389,16 @@ pub(crate) async fn authenticate(
     }
 
     Ok(())
+}
+
+async fn get_private_key() -> Result<()> {
+    // todo(mm): get private key from backend and generate only if not found
+    // let private_key = crypto::generate_rsa_key();
+    // todo(mm): encrypt private key
+    // derive encryption key from password
+    // salt and nonce can be derived from user_id
+    // app_state.auth_ctx.lock().unwrap().replace(auth_ctx);
+    todo!()
 }
 
 pub(crate) struct AppState {

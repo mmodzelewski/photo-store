@@ -4,7 +4,7 @@ use axum::{routing::post, Router};
 use crate::auth::google;
 use crate::AppState;
 
-use super::handlers::{login, login_desktop};
+use super::handlers::{get_key, login, login_desktop, save_key};
 
 pub(crate) fn routes(app_state: AppState) -> Router {
     let google = Router::new()
@@ -20,6 +20,12 @@ pub(crate) fn routes(app_state: AppState) -> Router {
         ));
 
     Router::new()
+        .route("/keys", get(get_key).post(save_key))
+        .route_layer(axum::middleware::from_fn(super::middleware::require_auth))
+        .route_layer(axum::middleware::from_fn_with_state(
+            app_state.clone(),
+            super::middleware::ctx_resolver,
+        ))
         .route("/login", post(login))
         .merge(desktop)
         .nest("/providers/google", google)

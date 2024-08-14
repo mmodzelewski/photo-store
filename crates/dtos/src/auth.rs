@@ -2,6 +2,17 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize)]
+pub struct SaveRsaKeysRequest {
+    pub private_key: String,
+    pub public_key: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct PrivateKeyResponse {
+    pub value: String,
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct LoginRequest {
     pub username: String,
     pub password: String,

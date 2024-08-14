@@ -2,7 +2,7 @@ use uuid::Uuid;
 
 use crate::auth::AuthorizationRequest;
 use crate::database::DbPool;
-use crate::error::Result;
+use crate::error::{Error, Result};
 
 pub(super) struct AuthRepository;
 
@@ -67,5 +67,57 @@ impl AuthRepository {
         })?;
 
         Ok(auth_request)
+    }
+
+    pub(crate) async fn has_key(db: &sqlx::Pool<sqlx::Postgres>, user_id: &Uuid) -> Result<bool> {
+        let query = sqlx::query!(
+            r#"SELECT private_key FROM user_keys where user_id = $1"#,
+            user_id
+        );
+        let result = query
+            .fetch_optional(db)
+            .await
+            .map_err(|e| Error::DbError(format!("Could not get private_key {}", e)))?;
+
+        Ok(result.is_some())
+    }
+
+    pub(crate) async fn save_keys(
+        db: &sqlx::Pool<sqlx::Postgres>,
+        user_id: &Uuid,
+        private_key: &str,
+        public_key: &str,
+    ) -> Result<()> {
+        let query = sqlx::query!(
+            r#"INSERT INTO user_keys (
+                user_id, private_key, public_key
+            ) VALUES ($1, $2, $3)"#,
+            user_id,
+            private_key,
+            public_key,
+        );
+
+        query
+            .execute(db)
+            .await
+            .map_err(|e| Error::DbError(format!("Could not save user keys: {}", e)))?;
+
+        Ok(())
+    }
+
+    pub(crate) async fn get_private_key(
+        db: &sqlx::Pool<sqlx::Postgres>,
+        user_id: &Uuid,
+    ) -> Result<String> {
+        let query = sqlx::query!(
+            r#"SELECT private_key FROM user_keys where user_id = $1"#,
+            user_id
+        );
+        let result = query
+            .fetch_one(db)
+            .await
+            .map_err(|e| Error::DbError(format!("Could not get private_key {}", e)))?;
+
+        Ok(result.private_key)
     }
 }

@@ -5,7 +5,7 @@ use aes_gcm::{Aes256Gcm, Key};
 use base64ct::{Base64, Encoding};
 use log::debug;
 use reqwest::multipart::Part;
-use rsa::{RsaPrivateKey, RsaPublicKey};
+use rsa::RsaPublicKey;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Manager};
@@ -21,6 +21,7 @@ use walkdir::{DirEntry, WalkDir};
 use crypto::{encrypt_data, CryptoFileDesc};
 use dtos::file::{FileMetadata, FilesUploadRequest};
 
+use crate::auth::{AuthCtx, AuthStore};
 use crate::database::Database;
 use crate::error::{Error, Result};
 use crate::http;
@@ -41,6 +42,12 @@ struct ThumbnailsGenerated {
     latest: String,
 }
 
+#[derive(Clone, Debug)]
+pub(crate) struct User {
+    pub id: Uuid,
+    pub name: String,
+}
+
 #[tauri::command]
 pub(crate) async fn save_images_dirs(
     dirs: Vec<&str>,
@@ -59,10 +66,10 @@ pub(crate) async fn save_images_dirs(
         .flatten()
         .collect::<Vec<_>>();
 
-    let private_key = { app_state.private_key.lock().unwrap().clone() }.ok_or(Error::Generic(
-        "Private key not found. Please authenticate first".to_owned(),
-    ))?;
-    let public_key = RsaPublicKey::from(&private_key);
+    let auth_ctx = { app_state.auth_ctx.lock().unwrap().clone() }
+        .ok_or(Error::Generic("User is not authenticated".to_owned()))?;
+
+    let public_key = auth_ctx.get_public_key();
 
     let current_time = std::time::SystemTime::now();
     debug!("Start indexing");
@@ -246,18 +253,16 @@ pub(crate) async fn sync_images(
 ) -> Result<()> {
     debug!("sync_images called");
 
-    let user_data = { app_state.user_data.lock().unwrap().clone() };
-    let user_data = user_data.ok_or(Error::Generic("User is not logged in".to_owned()))?;
-
-    let private_key = { app_state.private_key.lock().unwrap().clone() }.ok_or(Error::Generic(
-        "Private key not found. Please authenticate first".to_owned(),
-    ))?;
+    let user_data = { app_state.user.lock().unwrap().clone() };
+    let user = user_data.ok_or(Error::Generic("User is not logged in".to_owned()))?;
+    let auth_ctx = { app_state.auth_ctx.lock().unwrap().clone() }
+        .ok_or(Error::Generic("User is not authenticated".to_owned()))?;
 
     let descriptors: Vec<_> = database
         .get_indexed_images()?
         .into_iter()
         .map(|desc| {
-            let key = crypto::decode_encryption_key(&desc.key, &private_key, &desc).unwrap();
+            let key = crypto::decode_encryption_key(&desc.key, auth_ctx.decrypt(), &desc).unwrap();
             FileDesc {
                 decoded_key: Some(key),
                 ..desc.clone()
@@ -277,7 +282,7 @@ pub(crate) async fn sync_images(
         .collect();
 
     let body = FilesUploadRequest {
-        user_id: user_data.user_id,
+        user_id: user.id,
         files: image_metadata,
     };
     debug!("Sending metadata: {:?}", body);
@@ -288,7 +293,7 @@ pub(crate) async fn sync_images(
     let response = client
         .post(format!("{}/files/metadata", http_client.url))
         .header("Content-Type", "application/json")
-        .header("Authorization", &user_data.auth_token)
+        .header("Authorization", auth_ctx.get_auth_token())
         .body(serde_json::to_string(&body).unwrap())
         .send()
         .await
@@ -312,7 +317,7 @@ pub(crate) async fn sync_images(
         debug!("Sending file: {:?}", &desc.path);
         let res = client
             .post(format!("{}/files/{}/data", http_client.url, desc.uuid))
-            .header("Authorization", &user_data.auth_token)
+            .header("Authorization", auth_ctx.get_auth_token())
             .header("sha256_checksum", encrypted_data_hash)
             .multipart(form)
             .send()
@@ -331,6 +336,7 @@ pub(crate) fn has_images_dirs(database: tauri::State<Database>) -> Result<bool> 
 #[tauri::command]
 pub(crate) async fn authenticate(
     app_handle: AppHandle,
+    database: tauri::State<'_, Database>,
     app_state: tauri::State<'_, AppState>,
 ) -> Result<()> {
     let server = Server::http("127.0.0.1:0").unwrap();
@@ -358,18 +364,21 @@ pub(crate) async fn authenticate(
             .find(|(key, _)| key == "auth_token")
             .unwrap();
         let (_, user_id) = url.query_pairs().find(|(key, _)| key == "user_id").unwrap();
+        let (_, _key_created) = url
+            .query_pairs()
+            .find(|(key, _)| key == "key_created")
+            .unwrap();
+        let user_id = Uuid::parse_str(&user_id).unwrap();
 
-        *app_state.user_data.lock().unwrap() = Some(UserData {
-            auth_token: auth_token.to_string(),
-            user_id: user_id.to_string().parse().unwrap(),
-        });
+        let auth_store = AuthStore::new(auth_token.to_string());
+        auth_store.save(&user_id)?;
 
-        let private_key = crypto::generate_rsa_key();
-        app_state
-            .private_key
-            .lock()
-            .unwrap()
-            .replace(private_key.clone());
+        let user = User {
+            id: user_id,
+            name: "".to_owned(),
+        };
+        database.save_user(&user)?;
+        app_state.user.lock().unwrap().replace(user);
 
         let done_url = "http://localhost:5173/auth/desktop/complete";
         let response = tiny_http::Response::empty(303)
@@ -383,13 +392,7 @@ pub(crate) async fn authenticate(
 }
 
 pub(crate) struct AppState {
-    pub user_data: Mutex<Option<UserData>>,
+    pub user: Mutex<Option<User>>,
     pub http_client: Mutex<http::HttpClient>,
-    pub private_key: Mutex<Option<RsaPrivateKey>>,
-}
-
-#[derive(Clone)]
-pub(crate) struct UserData {
-    pub user_id: Uuid,
-    pub auth_token: String,
+    pub auth_ctx: Mutex<Option<AuthCtx>>,
 }

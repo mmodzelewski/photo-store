@@ -1,10 +1,11 @@
+mod auth;
 mod database;
 mod error;
 mod handlers;
 mod http;
 mod image;
 
-use crate::image::image_protocol::image_protocol_handler;
+use crate::{auth::AuthCtx, image::image_protocol::image_protocol_handler};
 use database::Database;
 use error::{Error, Result};
 use handlers::AppState;
@@ -36,12 +37,23 @@ pub fn run() {
             ))?;
             fs::create_dir_all(&path)?;
 
-            app.manage(Database::init(path)?);
+            let database = Database::init(path)?;
+            let user = database.get_user()?;
+            debug!("Logged in user: {:?}", user);
+
+            app.manage(database);
             update_scopes(app)?;
+
+            let auth_ctx = user
+                .as_ref()
+                .map(|user| auth::AuthStore::load(&user.id))
+                .transpose()?
+                .and_then(|store| AuthCtx::from_store(store));
+
             app.manage(AppState {
-                user_data: Default::default(),
+                user: Mutex::new(user),
                 http_client: Mutex::new(HttpClient::new("http://localhost:3000")),
-                private_key: Default::default(),
+                auth_ctx: Mutex::new(auth_ctx),
             });
             return Ok(());
         })

@@ -1451,6 +1451,7 @@ name = "crypto"
 version = "0.1.0"
 dependencies = [
  "aes-gcm",
+ "argon2",
  "base64ct",
  "bytes",
  "rand 0.8.5",

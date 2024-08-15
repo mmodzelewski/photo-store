@@ -1,16 +1,18 @@
+use ::rsa::{Oaep, RsaPublicKey};
 use aes_gcm::aead::consts::U12;
 use aes_gcm::Nonce;
 use aes_gcm::{aead::Aead, Aes256Gcm, Key, KeyInit};
+use argon2::Argon2;
 use base64ct::{Base64, Encoding};
 use bytes::Bytes;
 use rand::rngs::OsRng;
-use rsa::{Oaep, RsaPrivateKey, RsaPublicKey};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use error::Error;
 
 pub mod error;
+pub mod rsa;
 
 pub trait CryptoFileDesc {
     fn uuid(&self) -> Uuid;
@@ -54,13 +56,6 @@ pub fn generate_encoded_encryption_key(public_key: &RsaPublicKey) -> String {
     Base64::encode_string(&encrypted_key)
 }
 
-pub fn generate_rsa_key() -> RsaPrivateKey {
-    let mut rng = rand::thread_rng();
-
-    let bits = 2048;
-    RsaPrivateKey::new(&mut rng, bits).expect("failed to generate a key")
-}
-
 pub fn encrypt(data: &[u8], public_key: &RsaPublicKey) -> Vec<u8> {
     let mut rng = rand::thread_rng();
     let padding = Oaep::new::<Sha256>();
@@ -91,4 +86,28 @@ fn generate_nonce_from_uuid(uuid: Uuid) -> Nonce<U12> {
     let hash = Sha256::digest(uuid_bytes);
     let nonce_bytes = &hash[0..12];
     Nonce::clone_from_slice(nonce_bytes)
+}
+
+pub fn encrypt_data_raw(data: &[u8], cipher: &Aes256Gcm, nonce: &Nonce<U12>) -> String {
+    let encrypted = cipher.encrypt(nonce, data).unwrap();
+    Base64::encode_string(&encrypted)
+}
+
+pub fn decrypt_data_raw(data: &str, cipher: &Aes256Gcm, nonce: &Nonce<U12>) -> Vec<u8> {
+    let decoded = Base64::decode_vec(data).unwrap();
+    cipher.decrypt(nonce, decoded.as_ref()).unwrap()
+}
+
+pub fn generate_cipher(user_id: &Uuid, passphrase: &str) -> error::Result<(Aes256Gcm, Nonce<U12>)> {
+    let salt = user_id.as_bytes();
+    let nonce = &salt[4..12];
+    let nonce = Nonce::clone_from_slice(nonce);
+
+    let mut enc_key = [0u8; 32];
+    Argon2::default()
+        .hash_password_into(passphrase.as_bytes(), salt, &mut enc_key)
+        .unwrap();
+    let cipher = Aes256Gcm::new_from_slice(&enc_key).unwrap();
+
+    Ok((cipher, nonce))
 }

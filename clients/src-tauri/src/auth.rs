@@ -26,6 +26,10 @@ impl AuthStore {
         }
     }
 
+    pub(crate) fn get_auth_token(&self) -> &str {
+        &self.auth_token
+    }
+
     pub(crate) fn with_private_key(&self, private_key: RsaPrivateKey) -> AuthStore {
         AuthStore {
             auth_token: self.auth_token.clone(),

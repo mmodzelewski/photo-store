@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 aes-gcm = "0.10.3"
+argon2 = "0.5.3"
 base64ct = { version = "1.6.0", features = ["std"] }
 bytes = "1.5.0"
 rand = "0.8.5"

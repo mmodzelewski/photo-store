@@ -9,7 +9,7 @@ pub struct SaveRsaKeysRequest {
 
 #[derive(Serialize, Deserialize)]
 pub struct PrivateKeyResponse {
-    pub value: String,
+    pub value: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]

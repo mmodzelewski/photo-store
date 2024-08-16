@@ -93,14 +93,20 @@ pub fn encrypt_data_raw(data: &[u8], cipher: &Aes256Gcm, nonce: &Nonce<U12>) -> 
     Base64::encode_string(&encrypted)
 }
 
-pub fn decrypt_data_raw(data: &str, cipher: &Aes256Gcm, nonce: &Nonce<U12>) -> Vec<u8> {
+pub fn decrypt_data_raw(
+    data: &str,
+    cipher: &Aes256Gcm,
+    nonce: &Nonce<U12>,
+) -> error::Result<Vec<u8>> {
     let decoded = Base64::decode_vec(data).unwrap();
-    cipher.decrypt(nonce, decoded.as_ref()).unwrap()
+    cipher
+        .decrypt(nonce, decoded.as_ref())
+        .map_err(|e| Error::EncryptionError(format!("Could not decrypt data, error: {}", e)))
 }
 
 pub fn generate_cipher(user_id: &Uuid, passphrase: &str) -> error::Result<(Aes256Gcm, Nonce<U12>)> {
     let salt = user_id.as_bytes();
-    let nonce = &salt[4..12];
+    let nonce = &salt[4..16];
     let nonce = Nonce::clone_from_slice(nonce);
 
     let mut enc_key = [0u8; 32];

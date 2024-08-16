@@ -25,11 +25,13 @@ pub fn run() {
             handlers::has_images_dirs,
             handlers::get_images,
             handlers::authenticate,
+            handlers::get_private_key,
         ])
         .register_uri_scheme_protocol("image", image_protocol_handler)
         .setup(|app| {
             env_logger::Builder::new()
-                .filter_level(log::LevelFilter::Trace)
+                .filter_level(log::LevelFilter::Info)
+                .parse_default_env()
                 .init();
 
             let path = app.path().app_data_dir().ok().ok_or(Error::Runtime(

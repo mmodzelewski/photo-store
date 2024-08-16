@@ -384,15 +384,17 @@ pub(crate) async fn authenticate(
 
         debug!("Listener closed.");
     }
+    app_handle.emit("authenticated", ())?;
 
     Ok(())
 }
 
-async fn _get_private_key(
-    app_handle: AppHandle,
+#[tauri::command]
+pub(crate) async fn get_private_key(
+    passphrase: String,
     app_state: tauri::State<'_, AppState>,
 ) -> Result<()> {
-    let passphrase = "test"; // change to input
+    debug!("Initiating private key");
     let http_client = { app_state.http_client.lock().unwrap().clone() };
     let client = http_client.client;
 
@@ -409,10 +411,10 @@ async fn _get_private_key(
         .json::<PrivateKeyResponse>()
         .await?;
 
-    let (cipher, nonce) = crypto::generate_cipher(&user.id, passphrase)?;
+    let (cipher, nonce) = crypto::generate_cipher(&user.id, &passphrase)?;
     let private_key = if let Some(private_key_encrypted) = private_key.value {
         debug!("decrypting existing key");
-        let pk_der = crypto::decrypt_data_raw(&private_key_encrypted, &cipher, &nonce);
+        let pk_der = crypto::decrypt_data_raw(&private_key_encrypted, &cipher, &nonce)?;
         crypto::rsa::from_der(&pk_der)?
     } else {
         debug!("creating new key");

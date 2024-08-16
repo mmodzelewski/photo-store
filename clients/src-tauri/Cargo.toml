@@ -14,11 +14,11 @@ name = "photo_store_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2.0.0-beta", features = [] }
+tauri-build = { version = "2.0.0-rc.0", features = [] }
 
 [dependencies]
 aes-gcm = "0.10.3"
-tauri = { version = "2.0.0-beta", features = [ "protocol-asset"] }
+tauri = { version = "2.0.0-rc.0", features = [ "protocol-asset"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 reqwest = { version = "0.11.24", features = ["multipart", "json"] }
@@ -37,10 +37,10 @@ sha2 = "0.10.8"
 base64ct = { version = "1.6.0", features = ["std"] }
 url = "2.5.0"
 dtos = { version = "0.1.0", path = "../../crates/dtos" }
-tauri-plugin-dialog = "2.0.0-beta.6"
+tauri-plugin-dialog = "2.0.0-rc.0"
 crypto = { version = "0.1.0", path = "../../crates/crypto" }
 tiny_http = "0.12.0"
-tauri-plugin-shell = "2.0.0-beta"
+tauri-plugin-shell = "2.0.0-rc.0"
 rsa = { version = "0.9.6", features = ["sha2"] }
 keyring = "2.3.3"
 

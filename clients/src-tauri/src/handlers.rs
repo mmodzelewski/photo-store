@@ -9,7 +9,7 @@ use reqwest::multipart::Part;
 use rsa::RsaPublicKey;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_shell::ShellExt;
 use time::format_description::FormatItem;
 use time::macros::format_description;

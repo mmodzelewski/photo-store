@@ -1,9 +1,9 @@
 <script lang="ts">
     import Button from "@components/Button.svelte";
-    import { navigation } from "./navigation";
     import { invoke } from "@tauri-apps/api/core";
     import { listen, type UnlistenFn } from "@tauri-apps/api/event";
     import { onMount, onDestroy } from "svelte";
+    import { Navigation } from "./navigation.svelte";
 
     let dialog: HTMLDialogElement;
     const unlistenFunctions: UnlistenFn[] = [];
@@ -41,7 +41,7 @@
         <h1>Photo store</h1>
         <Button on:click={() => dialog.showModal()}>Settings</Button>
     </div>
-    <svelte:component this={$navigation} />
+    <svelte:component this={Navigation.component} />
 </div>
 
 <dialog

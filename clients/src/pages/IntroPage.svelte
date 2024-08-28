@@ -3,7 +3,7 @@
     import { invoke, convertFileSrc } from "@tauri-apps/api/core";
     import { pictureDir } from "@tauri-apps/api/path";
     import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-    import { navigation } from "../navigation";
+    import { Navigation } from "../navigation.svelte";
     import { onDestroy, onMount } from "svelte";
     import Button from "@components/Button.svelte";
 
@@ -65,7 +65,7 @@
         });
         if (dirs) {
             await invoke("save_images_dirs", { dirs });
-            navigation.goToGallery();
+            Navigation.goToGallery()
         }
     }
 </script>

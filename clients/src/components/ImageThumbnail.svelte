@@ -1,4 +1,4 @@
-<script context="module" lang="ts">
+<script module lang="ts">
     export type Image = { id: string };
     const observer = new IntersectionObserver(
         (entries) => {

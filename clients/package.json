@@ -17,7 +17,7 @@
     "@tauri-apps/plugin-dialog": "2.0.0-beta.2"
   },
   "devDependencies": {
-    "@sveltejs/vite-plugin-svelte": "^3.0.1",
+    "@sveltejs/vite-plugin-svelte": "^3.1.1",
     "@tauri-apps/cli": "2.0.0-rc.3",
     "@tsconfig/svelte": "^5.0.2",
     "@types/node": "^20.10.6",
@@ -29,17 +29,17 @@
     "prettier": "^3.1.1",
     "prettier-plugin-svelte": "^3.1.2",
     "prettier-plugin-tailwindcss": "^0.5.10",
-    "svelte": "^4.2.8",
-    "svelte-check": "^3.6.2",
+    "svelte": "5.0.0-next.240",
+    "svelte-check": "^3.8.5",
     "svelte-preprocess": "^5.1.3",
     "tailwindcss": "^3.4.0",
     "tslib": "^2.6.2",
     "typescript": "^5.3.3",
-    "vite": "^4.5.1"
+    "vite": "^5.4.1"
   },
   "volta": {
     "node": "20.12.2",
-    "pnpm": "9.0.6"
+    "pnpm": "9.9.0"
   },
   "lint-staged": {
     "src/**/*.{js,ts,svelte,css}": [

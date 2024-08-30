@@ -440,8 +440,9 @@ pub(crate) async fn get_private_key(
     };
 
     auth_store.with_private_key(private_key).save(&user.id)?;
-
-    AuthCtx::from_store(auth_store).map(|ctx| app_state.auth_ctx.lock().unwrap().replace(ctx));
+    let ctx = AuthCtx::from_store(auth_store)
+        .ok_or(Error::Generic("Could not create auth context".to_owned()))?;
+    app_state.auth_ctx.lock().unwrap().replace(ctx);
 
     Ok(())
 }

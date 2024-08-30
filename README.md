@@ -7,7 +7,7 @@ across multiple platforms.
 ### Todo
 
 - [x] Cargo workspace for sharing code between apps?
-- [ ] End-to-end encryption
+- [x] End-to-end encryption
 
 #### Backend
 
@@ -26,7 +26,7 @@ across multiple platforms.
 - [ ] Change process for generating thumbnails - maybe on demand?
 - [ ] Add custom assets protocol for getting images by id and resolution - 
       when Tauri v2 is available and async protocol implementation is possible
-- [ ] Store auth token in keyring      
+- [x] Store auth token in keyring      
 - [x] Local images indexing
 - [x] Thumbnails generation for images
 - [x] Pagination for images loading

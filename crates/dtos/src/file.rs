@@ -7,7 +7,7 @@ pub struct FilesUploadRequest {
     pub files: Vec<FileMetadata>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FileMetadata {
     pub path: String,
     pub uuid: uuid::Uuid,

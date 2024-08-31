@@ -5,12 +5,21 @@ use crate::error::Result;
 
 use super::{File, FileState};
 
-pub(super) struct FileRepository;
+pub(super) trait FileRepository {
+    async fn exists(&self, uuid: &Uuid) -> Result<bool>;
+    async fn find(&self, uuid: &Uuid) -> Result<Option<File>>;
+    async fn save(&mut self, file: &File) -> Result<()>;
+    async fn update_state(&self, file_id: &Uuid, state: FileState) -> Result<()>;
+}
 
-impl FileRepository {
-    pub(super) async fn exists(db: &DbPool, uuid: &Uuid) -> Result<bool> {
+pub(super) struct DbFileRepository {
+    pub db: DbPool,
+}
+
+impl FileRepository for DbFileRepository {
+    async fn exists(&self, uuid: &Uuid) -> Result<bool> {
         let count = sqlx::query!("SELECT count(1) FROM file WHERE uuid = $1", uuid)
-            .fetch_one(db)
+            .fetch_one(&self.db)
             .await
             .map_err(|e| {
                 crate::error::Error::DbError(format!("Could not check if file exists {}", e))
@@ -19,7 +28,7 @@ impl FileRepository {
         Ok(res)
     }
 
-    pub(super) async fn find(db: &DbPool, uuid: &Uuid) -> Result<Option<File>> {
+    async fn find(&self, uuid: &Uuid) -> Result<Option<File>> {
         let file = sqlx::query_as!(
             File,
             r#"SELECT
@@ -30,14 +39,14 @@ impl FileRepository {
             WHERE uuid = $1"#,
             uuid
         )
-        .fetch_optional(db)
+        .fetch_optional(&self.db)
         .await
         .map_err(|e| crate::error::Error::DbError(format!("Could not get file {}", e)))?;
 
         Ok(file)
     }
 
-    pub(super) async fn save(db: &DbPool, file: &File) -> Result<()> {
+    async fn save(&mut self, file: &File) -> Result<()> {
         let query = sqlx::query!(
             r#"INSERT INTO file (
                 path, name, state, uuid, created_at, sha256, owner_id, uploader_id, enc_key 
@@ -54,24 +63,53 @@ impl FileRepository {
         );
 
         query
-            .execute(db)
+            .execute(&self.db)
             .await
             .map_err(|e| crate::error::Error::DbError(format!("Could not save file {}", e)))?;
 
         Ok(())
     }
 
-    pub(super) async fn update_state(db: &DbPool, file_id: &Uuid, state: FileState) -> Result<()> {
+    async fn update_state(&self, file_id: &Uuid, state: FileState) -> Result<()> {
         let query = sqlx::query!(
             "UPDATE file SET state = $1 WHERE uuid = $2",
             state as _,
             file_id
         );
 
-        query.execute(db).await.map_err(|e| {
+        query.execute(&self.db).await.map_err(|e| {
             crate::error::Error::DbError(format!("Could not update file {} state {}", file_id, e))
         })?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+
+    pub struct InMemoryFileRepository {
+        pub files: Vec<File>,
+    }
+
+    impl FileRepository for InMemoryFileRepository {
+        async fn exists(&self, uuid: &Uuid) -> Result<bool> {
+            let exists = self.files.iter().any(|f| f.uuid == *uuid);
+            Ok(exists)
+        }
+
+        async fn find(&self, uuid: &Uuid) -> Result<Option<File>> {
+            todo!()
+        }
+
+        async fn save(&mut self, file: &File) -> Result<()> {
+            self.files.push(file.clone());
+            Ok(())
+        }
+
+        async fn update_state(&self, file_id: &Uuid, state: FileState) -> Result<()> {
+            todo!()
+        }
     }
 }

@@ -11,15 +11,15 @@ use uuid::Uuid;
 
 use dtos::file::FilesUploadRequest;
 
+use super::{repository::DbFileRepository, File};
 use crate::config::StorageConfig;
+use crate::file::repository::FileRepository;
 use crate::{
     ctx::Ctx,
     error::{Error, Result},
     file::FileState,
     AppState,
 };
-
-use super::{repository::FileRepository, File};
 
 pub(super) async fn upload_files_metadata(
     State(state): State<AppState>,
@@ -33,6 +33,17 @@ pub(super) async fn upload_files_metadata(
         ctx.user_id(),
     );
 
+    let mut repo = DbFileRepository { db: state.db };
+    upload_files_metadata_internal(&mut repo, ctx, request).await?;
+
+    Ok(())
+}
+
+async fn upload_files_metadata_internal(
+    repo: &mut impl FileRepository,
+    ctx: Ctx,
+    request: FilesUploadRequest,
+) -> Result<()> {
     if request.user_id != ctx.user_id() {
         return Err(Error::FileUploadError(format!(
             "User {} is trying to upload files for user {}",
@@ -41,10 +52,8 @@ pub(super) async fn upload_files_metadata(
         )));
     }
 
-    let db = state.db;
-
     for item in request.files {
-        let exists = FileRepository::exists(&db, &item.uuid).await?;
+        let exists = repo.exists(&item.uuid).await?;
 
         if exists {
             warn!("File {:?} already exists, skipping upload", &item.uuid);
@@ -58,14 +67,14 @@ pub(super) async fn upload_files_metadata(
             uuid: item.uuid,
             created_at: item.date,
             added_at: OffsetDateTime::now_utc(),
-            sha256: item.sha256,
+            sha256: item.sha256.clone(),
             owner_id: request.user_id.clone(),
             uploader_id: ctx.user_id(),
             enc_key: item.key.clone(),
         };
 
         debug!("Saving file {:?}", &file);
-        FileRepository::save(&db, &file).await?;
+        repo.save(&file).await?;
     }
 
     Ok(())
@@ -84,9 +93,9 @@ pub(super) async fn upload_file(
         ctx.user_id()
     );
 
-    let db = state.db;
+    let repo = DbFileRepository { db: state.db };
 
-    let file = FileRepository::find(&db, &file_id).await?.ok_or_else(|| {
+    let file = repo.find(&file_id).await?.ok_or_else(|| {
         Error::FileUploadError(format!("Metadata for file {:?} not found", &file_id))
     })?;
     debug!("Found file: {:?}", file);
@@ -113,7 +122,8 @@ pub(super) async fn upload_file(
 
     return match file.state {
         FileState::New => {
-            FileRepository::update_state(&db, &file_id, FileState::SyncInProgress).await?;
+            repo.update_state(&file_id, FileState::SyncInProgress)
+                .await?;
 
             while let Some(field) = multipart.next_field().await.map_err(|e| {
                 Error::FileUploadError(format!(
@@ -124,7 +134,7 @@ pub(super) async fn upload_file(
                 debug!("Got field: {:?}", &field);
                 if Some("file") == field.name() {
                     upload(&file, field, sha256, &state.config.storage).await?;
-                    FileRepository::update_state(&db, &file_id, FileState::Synced).await?;
+                    repo.update_state(&file_id, FileState::Synced).await?;
                 }
             }
             Ok(())
@@ -187,4 +197,70 @@ async fn upload(file: &File, field: Field<'_>, sha256: &str, config: &StorageCon
 
     debug!("File {} upload result: {:?}", file.uuid, result);
     return Ok(());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::file::repository::tests::InMemoryFileRepository;
+    use dtos::file::FileMetadata;
+    use std::future::Future;
+
+    #[tokio::test]
+    async fn uploading_for_another_user_should_return_an_error() {
+        // given
+        let mut repo = InMemoryFileRepository { files: vec![] };
+        let request = FilesUploadRequest {
+            user_id: Uuid::new_v4(),
+            files: vec![],
+        };
+
+        let ctx = Ctx::new(Uuid::new_v4());
+
+        // when
+        let result = upload_files_metadata_internal(&mut repo, ctx, request).await;
+
+        // then
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .starts_with("File upload error"));
+    }
+
+    #[tokio::test]
+    async fn should_save_metadata_in_repository() {
+        // given
+        let mut repo = InMemoryFileRepository { files: vec![] };
+        let user_id = Uuid::new_v4();
+        let request = FilesUploadRequest {
+            user_id,
+            files: vec![FileMetadata {
+                path: "/home/pics/test.jpg".to_string(),
+                uuid: Uuid::new_v4(),
+                date: OffsetDateTime::now_utc(),
+                sha256: "sha256".to_string(),
+                key: "key".to_string(),
+            }],
+        };
+        let metadata = request.files[0].clone();
+        let ctx = Ctx::new(user_id);
+
+        // when
+        upload_files_metadata_internal(&mut repo, ctx, request)
+            .await
+            .unwrap();
+
+        // then
+        let file = &repo.files[0];
+        assert_eq!(file.path, "/home/pics/test.jpg");
+        assert_eq!(file.name, "test.jpg");
+        assert!(matches!(file.state, FileState::New));
+        assert_eq!(file.uuid, metadata.uuid);
+        assert_eq!(file.created_at, metadata.date);
+        assert_eq!(file.sha256, "sha256");
+        assert_eq!(file.owner_id, user_id);
+        assert_eq!(file.uploader_id, user_id);
+        assert_eq!(file.enc_key, "key");
+    }
 }

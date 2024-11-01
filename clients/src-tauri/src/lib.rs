@@ -27,7 +27,10 @@ pub fn run() {
             handlers::authenticate,
             handlers::get_private_key,
         ])
-        .register_uri_scheme_protocol("image", image_protocol_handler)
+        .register_uri_scheme_protocol("image", |ctx, request| {
+            let app = ctx.app_handle();
+            image_protocol_handler(app, request)
+        })
         .setup(|app| {
             env_logger::Builder::new()
                 .filter_level(log::LevelFilter::Info)

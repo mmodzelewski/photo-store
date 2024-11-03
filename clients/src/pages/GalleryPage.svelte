@@ -23,7 +23,7 @@
 </script>
 
 <h2>Gallery page</h2>
-<Button on:click={syncImages}>Sync images</Button>
+<Button onclick={syncImages}>Sync images</Button>
 
 <div class="grid grid-flow-row-dense grid-cols-4 gap-4">
     {#each images as image, index (image.id)}

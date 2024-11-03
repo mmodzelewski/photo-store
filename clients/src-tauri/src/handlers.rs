@@ -89,12 +89,14 @@ pub(crate) async fn save_images_dirs(
 }
 
 fn generate_thumbnails(files: &Vec<FileDesc>, app_handle: &AppHandle) -> Result<()> {
+    debug!("Start generating thumbnails");
     let thumbnails_dir = app_handle
         .path()
         .app_data_dir()
         .ok()
         .ok_or(Error::Generic("Cannot get app data directory".to_owned()))?;
     let thumbnails_dir = thumbnails_dir.join("thumbnails");
+    debug!("Thumbnails directory {:?}", thumbnails_dir);
     fs::create_dir_all(&thumbnails_dir).unwrap();
 
     for (done, file) in files.iter().enumerate() {
@@ -439,9 +441,9 @@ pub(crate) async fn get_private_key(
         private_key
     };
 
-    auth_store.with_private_key(private_key).save(&user.id)?;
-    let ctx = AuthCtx::from_store(auth_store)
-        .ok_or(Error::Generic("Could not create auth context".to_owned()))?;
+    let auth_store = auth_store.with_private_key(private_key);
+    auth_store.save(&user.id)?;
+    let ctx: AuthCtx = auth_store.try_into()?;
     app_state.auth_ctx.lock().unwrap().replace(ctx);
 
     Ok(())

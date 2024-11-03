@@ -71,7 +71,7 @@
 </script>
 
 <div>
-    <Button on:click={selectDir}>Select directory</Button>
+    <Button onclick={selectDir}>Select directory</Button>
 </div>
 <dialog
     bind:this={dialog}

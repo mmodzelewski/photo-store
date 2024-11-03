@@ -64,14 +64,23 @@ impl AuthStore {
     }
 }
 
-impl AuthCtx {
-    pub(crate) fn from_store(store: AuthStore) -> Option<AuthCtx> {
-        store.private_key.map(|private_key| AuthCtx {
-            auth_token: store.auth_token,
-            private_key,
-        })
-    }
+impl TryFrom<AuthStore> for AuthCtx {
+    type Error = Error;
 
+    fn try_from(store: AuthStore) -> std::result::Result<Self, Self::Error> {
+        store
+            .private_key
+            .map(|private_key| AuthCtx {
+                auth_token: store.auth_token,
+                private_key,
+            })
+            .ok_or(Error::Generic(
+                "Private key missing, cannot create auth ctx".to_string(),
+            ))
+    }
+}
+
+impl AuthCtx {
     pub(crate) fn get_public_key(&self) -> RsaPublicKey {
         RsaPublicKey::from(&self.private_key)
     }

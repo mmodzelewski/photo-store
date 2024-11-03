@@ -53,7 +53,7 @@ pub fn run() {
                 .as_ref()
                 .map(|user| auth::AuthStore::load(&user.id))
                 .transpose()?
-                .and_then(|store| AuthCtx::from_store(store));
+                .and_then(|store| AuthCtx::try_from(store).ok());
 
             app.manage(AppState {
                 user: Mutex::new(user),

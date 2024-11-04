@@ -26,6 +26,7 @@ pub fn run() {
             handlers::get_images,
             handlers::authenticate,
             handlers::get_private_key,
+            handlers::get_status,
         ])
         .register_uri_scheme_protocol("image", |ctx, request| {
             let app = ctx.app_handle();

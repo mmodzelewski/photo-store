@@ -50,6 +50,23 @@ pub(crate) struct User {
 }
 
 #[tauri::command]
+pub(crate) fn get_status(
+    database: tauri::State<Database>,
+    app_state: tauri::State<AppState>,
+) -> Result<String> {
+    debug!("Getting app status");
+    let auth_ctx = { app_state.auth_ctx.lock().unwrap().clone() };
+    if auth_ctx.is_none() {
+        return Ok("before_login".to_owned());
+    }
+    if database.has_images_dirs()? {
+        Ok("directories_selected".to_owned())
+    } else {
+        Ok("after_login".to_owned())
+    }
+}
+
+#[tauri::command]
 pub(crate) async fn save_images_dirs(
     dirs: Vec<&str>,
     app_handle: AppHandle,

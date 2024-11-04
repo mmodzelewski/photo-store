@@ -5,9 +5,17 @@ import { invoke } from "@tauri-apps/api/core";
 
 async function createNavigation() {
 
-    const hasDirs = await invoke("has_images_dirs");
-    // todo: add LoginPage check
-    const initialState = hasDirs ? GalleryPage : IntroPage;
+    const status = await invoke("get_status");
+
+    let initialState = LoginPage;
+    switch (status) {
+        case 'directories_selected':
+            initialState = GalleryPage;
+            break;
+        case 'after_login':
+            initialState = IntroPage;
+            break;
+    }
     let component = $state(initialState);
 
     function goToIntro() {

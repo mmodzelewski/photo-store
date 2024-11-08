@@ -1,5 +1,6 @@
+use std::fs;
 use std::path::Path;
-use std::{fs, sync::Mutex};
+use std::sync::RwLock;
 
 use aes_gcm::{Aes256Gcm, Key};
 use base64ct::{Base64, Encoding};
@@ -25,7 +26,7 @@ use dtos::file::{FileMetadata, FilesUploadRequest};
 use crate::auth::{AuthCtx, AuthStore};
 use crate::database::Database;
 use crate::error::{Error, Result};
-use crate::http;
+use crate::http::HttpClient;
 
 const DATE_TIME_FORMAT: &[FormatItem<'static>] = format_description!(
     "[year]-[month]-[day] [hour]:[minute]:[second] \"[offset_hour]:[offset_minute]\""
@@ -52,11 +53,11 @@ pub(crate) struct User {
 #[tauri::command]
 pub(crate) fn get_status(
     database: tauri::State<Database>,
-    app_state: tauri::State<AppState>,
+    app_state: tauri::State<SyncedAppState>,
 ) -> Result<String> {
     debug!("Getting app status");
-    let auth_ctx = { app_state.auth_ctx.lock().unwrap().clone() };
-    if auth_ctx.is_none() {
+    let state = app_state.read();
+    if state.auth_ctx.is_none() {
         return Ok("before_login".to_owned());
     }
     if database.has_images_dirs()? {
@@ -71,7 +72,7 @@ pub(crate) async fn save_images_dirs(
     dirs: Vec<&str>,
     app_handle: AppHandle,
     database: tauri::State<'_, Database>,
-    app_state: tauri::State<'_, AppState>,
+    app_state: tauri::State<'_, SyncedAppState>,
 ) -> Result<()> {
     debug!("Saving selected directories {:?}", dirs);
     database.save_directories(&dirs)?;
@@ -84,7 +85,9 @@ pub(crate) async fn save_images_dirs(
         .flatten()
         .collect::<Vec<_>>();
 
-    let auth_ctx = { app_state.auth_ctx.lock().unwrap().clone() }
+    let state = app_state.read();
+    let auth_ctx = state
+        .auth_ctx
         .ok_or(Error::Generic("User is not authenticated".to_owned()))?;
 
     let public_key = auth_ctx.get_public_key();
@@ -269,13 +272,17 @@ pub(crate) fn get_images(database: tauri::State<Database>) -> Result<Vec<Image>>
 #[tauri::command]
 pub(crate) async fn sync_images(
     database: tauri::State<'_, Database>,
-    app_state: tauri::State<'_, AppState>,
+    app_state: tauri::State<'_, SyncedAppState>,
+    http_client: tauri::State<'_, HttpClient>,
 ) -> Result<()> {
     debug!("sync_images called");
 
-    let user_data = { app_state.user.lock().unwrap().clone() };
-    let user = user_data.ok_or(Error::Generic("User is not logged in".to_owned()))?;
-    let auth_ctx = { app_state.auth_ctx.lock().unwrap().clone() }
+    let state = app_state.read();
+    let user = state
+        .user
+        .ok_or(Error::Generic("User is not logged in".to_owned()))?;
+    let auth_ctx = state
+        .auth_ctx
         .ok_or(Error::Generic("User is not authenticated".to_owned()))?;
 
     let descriptors: Vec<_> = database
@@ -307,11 +314,10 @@ pub(crate) async fn sync_images(
     };
     debug!("Sending metadata: {:?}", body);
 
-    let http_client = { app_state.http_client.lock().unwrap().clone() };
-    let client = http_client.client;
+    let client = http_client.client();
 
     let response = client
-        .post(format!("{}/files/metadata", http_client.url))
+        .post(format!("{}/files/metadata", http_client.url()))
         .header("Content-Type", "application/json")
         .header("Authorization", auth_ctx.get_auth_token())
         .body(serde_json::to_string(&body).unwrap())
@@ -336,7 +342,7 @@ pub(crate) async fn sync_images(
 
         debug!("Sending file: {:?}", &desc.path);
         let res = client
-            .post(format!("{}/files/{}/data", http_client.url, desc.uuid))
+            .post(format!("{}/files/{}/data", http_client.url(), desc.uuid))
             .header("Authorization", auth_ctx.get_auth_token())
             .header("sha256_checksum", encrypted_data_hash)
             .multipart(form)
@@ -357,7 +363,7 @@ pub(crate) fn has_images_dirs(database: tauri::State<Database>) -> Result<bool> 
 pub(crate) async fn authenticate(
     app_handle: AppHandle,
     database: tauri::State<'_, Database>,
-    app_state: tauri::State<'_, AppState>,
+    app_state: tauri::State<'_, SyncedAppState>,
 ) -> Result<()> {
     let server = Server::http("127.0.0.1:0").unwrap();
     let ip = server.server_addr().to_ip().unwrap();
@@ -394,7 +400,7 @@ pub(crate) async fn authenticate(
             name: "".to_owned(),
         };
         database.save_user(&user)?;
-        app_state.user.lock().unwrap().replace(user);
+        app_state.replace_user(user);
 
         let done_url = "http://localhost:5173/auth/desktop/complete";
         let response = tiny_http::Response::empty(303)
@@ -411,19 +417,21 @@ pub(crate) async fn authenticate(
 #[tauri::command]
 pub(crate) async fn get_private_key(
     passphrase: String,
-    app_state: tauri::State<'_, AppState>,
+    app_state: tauri::State<'_, SyncedAppState>,
+    http_client: tauri::State<'_, HttpClient>,
 ) -> Result<()> {
     debug!("Initiating private key");
-    let http_client = { app_state.http_client.lock().unwrap().clone() };
-    let client = http_client.client;
+    let client = http_client.client();
 
-    let user = { app_state.user.lock().unwrap().clone() };
-    let user = user.ok_or(Error::Generic("User is not logged in".to_owned()))?;
+    let state = app_state.read();
+    let user = state
+        .user
+        .ok_or(Error::Generic("User is not logged in".to_owned()))?;
     let auth_store = AuthStore::load(&user.id)?;
     let auth_token = auth_store.get_auth_token();
 
     let private_key = client
-        .get(format!("{}/auth/keys", http_client.url))
+        .get(format!("{}/auth/keys", http_client.url()))
         .header("Authorization", auth_token)
         .send()
         .await?
@@ -448,7 +456,7 @@ pub(crate) async fn get_private_key(
             public_key: crypto::rsa::to_public_key_pem(&private_key)?,
         };
         client
-            .post(format!("{}/auth/keys", http_client.url))
+            .post(format!("{}/auth/keys", http_client.url()))
             .header("Content-Type", "application/json")
             .header("Authorization", auth_token)
             .body(serde_json::to_string(&body).unwrap())
@@ -461,13 +469,33 @@ pub(crate) async fn get_private_key(
     let auth_store = auth_store.with_private_key(private_key);
     auth_store.save(&user.id)?;
     let ctx: AuthCtx = auth_store.try_into()?;
-    app_state.auth_ctx.lock().unwrap().replace(ctx);
+    app_state.replace_auth_ctx(ctx);
 
     Ok(())
 }
 
+#[derive(Clone)]
 pub(crate) struct AppState {
-    pub user: Mutex<Option<User>>,
-    pub http_client: Mutex<http::HttpClient>,
-    pub auth_ctx: Mutex<Option<AuthCtx>>,
+    pub user: Option<User>,
+    pub auth_ctx: Option<AuthCtx>,
+}
+
+pub(crate) struct SyncedAppState(RwLock<AppState>);
+
+impl SyncedAppState {
+    pub(crate) fn new(user: Option<User>, auth_ctx: Option<AuthCtx>) -> Self {
+        Self(RwLock::new(AppState { user, auth_ctx }))
+    }
+
+    fn read(&self) -> AppState {
+        self.0.read().unwrap().clone()
+    }
+
+    fn replace_auth_ctx(&self, ctx: AuthCtx) {
+        self.0.write().unwrap().auth_ctx.replace(ctx);
+    }
+
+    fn replace_user(&self, user: User) {
+        self.0.write().unwrap().user.replace(user);
+    }
 }

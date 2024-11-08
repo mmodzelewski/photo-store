@@ -1,7 +1,7 @@
 #[derive(Clone)]
 pub(crate) struct HttpClient {
-    pub client: reqwest::Client,
-    pub url: String,
+    client: reqwest::Client,
+    url: String,
 }
 
 impl HttpClient {
@@ -10,5 +10,13 @@ impl HttpClient {
             client: reqwest::Client::new(),
             url: url.to_owned(),
         }
+    }
+
+    pub(crate) fn url(&self) -> &str {
+        &self.url
+    }
+
+    pub(crate) fn client(&self) -> &reqwest::Client {
+        &self.client
     }
 }

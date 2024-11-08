@@ -8,10 +8,10 @@ mod image;
 use crate::{auth::AuthCtx, image::image_protocol::image_protocol_handler};
 use database::Database;
 use error::{Error, Result};
-use handlers::AppState;
+use handlers::SyncedAppState;
 use http::HttpClient;
 use log::debug;
-use std::{fs, sync::Mutex};
+use std::fs;
 use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -56,11 +56,9 @@ pub fn run() {
                 .transpose()?
                 .and_then(|store| AuthCtx::try_from(store).ok());
 
-            app.manage(AppState {
-                user: Mutex::new(user),
-                http_client: Mutex::new(HttpClient::new("http://localhost:3000")),
-                auth_ctx: Mutex::new(auth_ctx),
-            });
+            app.manage(SyncedAppState::new(user, auth_ctx));
+
+            app.manage(HttpClient::new("http://localhost:3000"));
             return Ok(());
         })
         .run(tauri::generate_context!())

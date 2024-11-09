@@ -13,7 +13,6 @@ mod auth;
 mod config;
 mod ctx;
 mod database;
-mod endpoints;
 mod error;
 mod file;
 mod user;

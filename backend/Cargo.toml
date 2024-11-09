@@ -7,7 +7,6 @@ edition = "2021"
 
 [dependencies]
 aes-gcm = "0.10.3"
-anyhow = "1.0.80"
 argon2 = "0.5.3"
 async-trait = "0.1.77"
 aws-config = "1.1.7"
@@ -32,7 +31,3 @@ tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 url = "2.5.0"
 uuid = { workspace = true }
-
-[dev-dependencies]
-anyhow = "1.0.80"
-reqwest = { version = "0.12.4", features = ["multipart", "json"] }

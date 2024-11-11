@@ -1,8 +1,16 @@
 use aes_gcm::{Aes256Gcm, Key};
 use crypto::CryptoFileDesc;
 use dtos::file::FileMetadata;
+use strum::{EnumString, IntoStaticStr};
 use time::OffsetDateTime;
 use uuid::Uuid;
+
+#[derive(Clone, IntoStaticStr, EnumString)]
+pub enum SyncStatus {
+    New,
+    InProgress,
+    Done,
+}
 
 #[derive(Clone)]
 pub struct FileDescriptor {
@@ -11,6 +19,7 @@ pub struct FileDescriptor {
     pub date: OffsetDateTime,
     pub sha256: String,
     pub key: String,
+    pub status: SyncStatus,
 }
 
 impl From<&FileDescriptor> for FileMetadata {

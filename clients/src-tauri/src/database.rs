@@ -1,14 +1,18 @@
 use crate::{
     error::{Error, Result},
-    files::FileDescriptor,
+    files::{FileDescriptor, SyncStatus},
     handlers::User,
 };
 use log::debug;
-use rusqlite::Connection;
+use rusqlite::{
+    types::{FromSql, FromSqlError},
+    Connection, ToSql,
+};
 use rusqlite_migration::{Migrations, M};
 use std::{
     collections::HashMap,
     path::PathBuf,
+    str::FromStr,
     sync::{Mutex, MutexGuard},
 };
 use uuid::Uuid;
@@ -41,7 +45,8 @@ impl Database {
                     uuid BLOB NOT NULL UNIQUE,
                     date TEXT NOT NULL,
                     sha256 TEXT NOT NULL,
-                    key TEXT NOT NULL
+                    key TEXT NOT NULL,
+                    status TEXT NOT NULL
                 );",
             ),
         ]);
@@ -122,10 +127,17 @@ impl Database {
 
         {
             let mut stmt = tx.prepare(
-                "INSERT INTO file (path, uuid, date, sha256, key) VALUES (?1, ?2, ?3, ?4, ?5)",
+                "INSERT INTO file (path, uuid, date, sha256, key, status) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             )?;
             for desc in descriptors {
-                stmt.execute((&desc.path, desc.uuid, desc.date, &desc.sha256, &desc.key))?;
+                stmt.execute((
+                    &desc.path,
+                    desc.uuid,
+                    desc.date,
+                    &desc.sha256,
+                    &desc.key,
+                    &desc.status,
+                ))?;
             }
         }
 
@@ -136,7 +148,7 @@ impl Database {
     pub fn get_indexed_images(&self) -> Result<Vec<FileDescriptor>> {
         let conn = self.get_connection()?;
         let mut statement =
-            conn.prepare("SELECT path, uuid, date, sha256, key FROM file ORDER BY date DESC")?;
+            conn.prepare("SELECT path, uuid, date, sha256, key, status FROM file ORDER BY date DESC")?;
         let rows = statement.query_map([], |row| {
             Ok(FileDescriptor {
                 path: row.get(0)?,
@@ -144,6 +156,7 @@ impl Database {
                 date: row.get(2)?,
                 sha256: row.get(3)?,
                 key: row.get(4)?,
+                status: row.get(5)?
             })
         })?;
         let mut descriptors = Vec::new();
@@ -175,5 +188,20 @@ impl Database {
         tx.commit()?;
 
         return Ok(());
+    }
+}
+
+impl ToSql for SyncStatus {
+    fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
+        let val: &'static str = self.into();
+        Ok(val.into())
+    }
+}
+
+impl FromSql for SyncStatus {
+    fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
+        let sync_status = SyncStatus::from_str(value.as_str()?)
+            .map_err(|err| FromSqlError::Other(Box::new(err)))?;
+        Ok(sync_status)
     }
 }

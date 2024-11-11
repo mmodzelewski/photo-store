@@ -25,7 +25,7 @@ use dtos::file::FilesUploadRequest;
 use crate::auth::{AuthCtx, AuthStore};
 use crate::database::Database;
 use crate::error::{Error, Result};
-use crate::files::{FileDescriptor, FileDescriptorWithDecodedKey};
+use crate::files::{FileDescriptor, FileDescriptorWithDecodedKey, SyncStatus};
 use crate::http::HttpClient;
 
 const DATE_TIME_FORMAT: &[FormatItem<'static>] = format_description!(
@@ -165,6 +165,7 @@ fn index_files(
             date,
             sha256,
             key: encryption_key,
+            status: SyncStatus::New,
         });
     }
     debug!("Saving to db");

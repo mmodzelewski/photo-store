@@ -1,6 +1,7 @@
 mod auth;
 mod database;
 mod error;
+mod files;
 mod handlers;
 mod http;
 mod image;

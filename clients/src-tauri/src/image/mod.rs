@@ -1,6 +1,5 @@
 pub(crate) mod image_protocol;
 
-use crate::handlers::FileDesc;
 use ::image::codecs::jpeg::JpegEncoder;
 use ::image::io::Reader as ImageReader;
 use ::image::{ColorType, ImageEncoder};
@@ -11,6 +10,8 @@ use std::fs::{self, File};
 use std::io::BufWriter;
 use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
+
+use crate::files::FileDescriptor;
 
 struct Image {
     data: DynamicImage,
@@ -51,7 +52,7 @@ impl Size {
     }
 }
 
-pub fn generate_thumbnails(file_desc: &FileDesc, folder_path: &Path) -> Vec<PathBuf> {
+pub fn generate_thumbnails(file_desc: &FileDescriptor, folder_path: &Path) -> Vec<PathBuf> {
     let mut thumbnails = Vec::new();
 
     let img = Image::open(&file_desc.path);
@@ -78,7 +79,7 @@ pub fn generate_thumbnails(file_desc: &FileDesc, folder_path: &Path) -> Vec<Path
 
 fn generate_thumbnail_keep_aspect(
     img: &fr::Image,
-    file_desc: &FileDesc,
+    file_desc: &FileDescriptor,
     folder_path: &Path,
     max_size: u32,
     cover: bool,

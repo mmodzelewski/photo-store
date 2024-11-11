@@ -2,7 +2,6 @@ use std::fs;
 use std::path::Path;
 use std::sync::RwLock;
 
-use aes_gcm::{Aes256Gcm, Key};
 use base64ct::{Base64, Encoding};
 use dtos::auth::{PrivateKeyResponse, SaveRsaKeysRequest};
 use log::debug;
@@ -20,12 +19,13 @@ use url::Url;
 use uuid::Uuid;
 use walkdir::{DirEntry, WalkDir};
 
-use crypto::{encrypt_data, CryptoFileDesc};
-use dtos::file::{FileMetadata, FilesUploadRequest};
+use crypto::encrypt_data;
+use dtos::file::FilesUploadRequest;
 
 use crate::auth::{AuthCtx, AuthStore};
 use crate::database::Database;
 use crate::error::{Error, Result};
+use crate::files::{FileDescriptor, FileDescriptorWithDecodedKey};
 use crate::http::HttpClient;
 
 const DATE_TIME_FORMAT: &[FormatItem<'static>] = format_description!(
@@ -108,7 +108,7 @@ pub(crate) async fn save_images_dirs(
     return Ok(());
 }
 
-fn generate_thumbnails(files: &Vec<FileDesc>, app_handle: &AppHandle) -> Result<()> {
+fn generate_thumbnails(files: &Vec<FileDescriptor>, app_handle: &AppHandle) -> Result<()> {
     debug!("Start generating thumbnails");
     let thumbnails_dir = app_handle
         .path()
@@ -145,7 +145,7 @@ fn index_files(
     files: &Vec<DirEntry>,
     public_key: &RsaPublicKey,
     database: &tauri::State<Database>,
-) -> Result<Vec<FileDesc>> {
+) -> Result<Vec<FileDescriptor>> {
     let mut descriptors = vec![];
     for file in files {
         let path = file
@@ -159,13 +159,12 @@ fn index_files(
         let encryption_key = crypto::generate_encoded_encryption_key(public_key);
 
         let date = get_date(file, &path)?;
-        descriptors.push(FileDesc {
+        descriptors.push(FileDescriptor {
             path,
             uuid: Uuid::new_v4(),
             date,
             sha256,
             key: encryption_key,
-            decoded_key: None,
         });
     }
     debug!("Saving to db");
@@ -210,26 +209,6 @@ fn get_date_from_exif(path: &String) -> Result<OffsetDateTime> {
     let datetime = OffsetDateTime::parse(&datetime, DATE_TIME_FORMAT)?;
 
     Ok(datetime)
-}
-
-#[derive(Clone)]
-pub(crate) struct FileDesc {
-    pub path: String,
-    pub uuid: Uuid,
-    pub date: OffsetDateTime,
-    pub sha256: String,
-    pub key: String,
-    pub decoded_key: Option<Key<Aes256Gcm>>,
-}
-
-impl CryptoFileDesc for FileDesc {
-    fn uuid(&self) -> Uuid {
-        self.uuid
-    }
-
-    fn sha256(&self) -> &str {
-        &self.sha256
-    }
 }
 
 fn get_files_from_dir(dir: &str) -> Result<Vec<DirEntry>> {
@@ -285,27 +264,18 @@ pub(crate) async fn sync_images(
         .auth_ctx
         .ok_or(Error::Generic("User is not authenticated".to_owned()))?;
 
-    let descriptors: Vec<_> = database
+    let descriptors_with_keys: Vec<_> = database
         .get_indexed_images()?
         .into_iter()
         .map(|desc| {
             let key = crypto::decode_encryption_key(&desc.key, auth_ctx.decrypt(), &desc).unwrap();
-            FileDesc {
-                decoded_key: Some(key),
-                ..desc.clone()
-            }
+            FileDescriptorWithDecodedKey::new(desc, key)
         })
         .collect();
 
-    let image_metadata = descriptors
+    let image_metadata = descriptors_with_keys
         .iter()
-        .map(|desc| FileMetadata {
-            path: desc.path.to_owned(),
-            uuid: desc.uuid,
-            date: desc.date,
-            sha256: desc.sha256.to_owned(),
-            key: desc.key.to_owned(),
-        })
+        .map(|desc| desc.descriptor().into())
         .collect();
 
     let body = FilesUploadRequest {
@@ -327,22 +297,28 @@ pub(crate) async fn sync_images(
     debug!("Response: {:?}", response);
 
     debug!("Sending files");
-    for desc in descriptors {
-        let file = fs::read(&desc.path).unwrap();
+    for descriptor_with_key in descriptors_with_keys {
+        let descriptor = descriptor_with_key.descriptor();
+        let key = descriptor_with_key.key();
+        let file = fs::read(&descriptor.path).unwrap();
         let (encrypted_data, encrypted_data_hash) =
-            encrypt_data(&desc, &desc.decoded_key.unwrap(), file.into())?;
+            encrypt_data(descriptor, key, file.into())?;
 
         let form = reqwest::multipart::Form::new().part(
             "file",
             Part::bytes(encrypted_data)
-                .file_name(desc.path.to_owned())
+                .file_name(descriptor.path.to_owned())
                 .mime_str("image/jpeg")
                 .unwrap(),
         );
 
-        debug!("Sending file: {:?}", &desc.path);
+        debug!("Sending file: {:?}", &descriptor.path);
         let res = client
-            .post(format!("{}/files/{}/data", http_client.url(), desc.uuid))
+            .post(format!(
+                "{}/files/{}/data",
+                http_client.url(),
+                descriptor.uuid
+            ))
             .header("Authorization", auth_ctx.get_auth_token())
             .header("sha256_checksum", encrypted_data_hash)
             .multipart(form)

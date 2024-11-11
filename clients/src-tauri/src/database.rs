@@ -1,6 +1,7 @@
 use crate::{
     error::{Error, Result},
-    handlers::{FileDesc, User},
+    files::FileDescriptor,
+    handlers::User,
 };
 use log::debug;
 use rusqlite::Connection;
@@ -115,7 +116,7 @@ impl Database {
         return Ok(dirs);
     }
 
-    pub fn index_files(&self, descriptors: &Vec<FileDesc>) -> Result<()> {
+    pub fn index_files(&self, descriptors: &Vec<FileDescriptor>) -> Result<()> {
         let mut conn = self.get_connection()?;
         let tx = conn.transaction()?;
 
@@ -132,18 +133,17 @@ impl Database {
         return Ok(());
     }
 
-    pub fn get_indexed_images(&self) -> Result<Vec<FileDesc>> {
+    pub fn get_indexed_images(&self) -> Result<Vec<FileDescriptor>> {
         let conn = self.get_connection()?;
         let mut statement =
             conn.prepare("SELECT path, uuid, date, sha256, key FROM file ORDER BY date DESC")?;
         let rows = statement.query_map([], |row| {
-            Ok(FileDesc {
+            Ok(FileDescriptor {
                 path: row.get(0)?,
                 uuid: row.get(1)?,
                 date: row.get(2)?,
                 sha256: row.get(3)?,
                 key: row.get(4)?,
-                decoded_key: None,
             })
         })?;
         let mut descriptors = Vec::new();

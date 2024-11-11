@@ -6,7 +6,6 @@ authors = ["you"]
 license = ""
 repository = ""
 edition = "2021"
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
@@ -18,32 +17,32 @@ tauri-build = { version = "2.0.2", features = [] }
 
 [dependencies]
 aes-gcm = "0.10.3"
-tauri = { version = "2.0.6", features = [ "protocol-asset"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-reqwest = { version = "0.11.24", features = ["multipart", "json"] }
-rusqlite = { version = "0.30.0", features = ["bundled", "uuid", "time"] }
-rusqlite_migration = "1.1.0"
-thiserror = "1.0.57"
-log = "0.4.21"
+base64ct = { version = "1.6.0", features = ["std"] }
+crypto = { version = "0.1.0", path = "../../crates/crypto" }
+dtos = { version = "0.1.0", path = "../../crates/dtos" }
 env_logger = "0.10.2"
-walkdir = "2.4.0"
-uuid = { workspace = true }
 fast_image_resize = "2.7.3"
 image = "0.24.9"
 kamadak-exif = "0.5.5"
-time = { version = "0.3.34", features = ["serde"] }
-sha2 = "0.10.8"
-base64ct = { version = "1.6.0", features = ["std"] }
-url = "2.5.0"
-dtos = { version = "0.1.0", path = "../../crates/dtos" }
-tauri-plugin-dialog = "2.0.3"
-crypto = { version = "0.1.0", path = "../../crates/crypto" }
-tiny_http = "0.12.0"
-tauri-plugin-shell = "2.0.2"
-rsa = { version = "0.9.6", features = ["sha2"] }
 keyring = "2.3.3"
+log = "0.4.21"
+reqwest = { version = "0.11.24", features = ["multipart", "json"] }
+rsa = { version = "0.9.6", features = ["sha2"] }
+rusqlite = { version = "0.30.0", features = ["bundled", "uuid", "time"] }
+rusqlite_migration = "1.1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10.8"
 strum = { version = "0.26.3", features = ["derive"] }
+tauri = { version = "2.0.6", features = [ "protocol-asset"] }
+tauri-plugin-dialog = "2.0.3"
+tauri-plugin-shell = "2.0.2"
+thiserror = "1.0.57"
+time = { version = "0.3.34", features = ["serde"] }
+tiny_http = "0.12.0"
+url = "2.5.0"
+uuid = { workspace = true }
+walkdir = "2.4.0"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem

@@ -5,13 +5,15 @@ mod files;
 mod handlers;
 mod http;
 mod image;
+mod state;
+mod sync;
 
 use crate::{auth::AuthCtx, image::image_protocol::image_protocol_handler};
 use database::Database;
 use error::{Error, Result};
-use handlers::SyncedAppState;
 use http::HttpClient;
 use log::debug;
+use state::SyncedAppState;
 use std::fs;
 use tauri::Manager;
 
@@ -21,13 +23,13 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
-            handlers::sync_images,
+            sync::sync_images,
             handlers::save_images_dirs,
             handlers::has_images_dirs,
             handlers::get_images,
-            handlers::authenticate,
-            handlers::get_private_key,
-            handlers::get_status,
+            auth::handlers::authenticate,
+            auth::handlers::get_private_key,
+            state::get_status,
         ])
         .register_uri_scheme_protocol("image", |ctx, request| {
             let app = ctx.app_handle();

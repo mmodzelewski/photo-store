@@ -3,10 +3,10 @@ resolver = "2"
 
 members = [
     "backend",
+    "clients/src-tauri",
     "crates/crypto",
     "crates/dtos",
-    "clients/src-tauri",
 ]
 
 [workspace.dependencies]
-uuid = { version = "1.7.0", features = ["v4", "fast-rng"]}
+uuid = { version = "1.7.0", features = ["v4", "fast-rng"] }

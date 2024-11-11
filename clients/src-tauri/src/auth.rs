@@ -1,3 +1,5 @@
+pub mod handlers;
+
 use keyring::Entry;
 use rsa::{Oaep, RsaPrivateKey, RsaPublicKey};
 use serde::{Deserialize, Serialize};

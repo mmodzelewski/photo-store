@@ -7,6 +7,9 @@ run-backend:
 run-web:
     cd web && pnpm dev
 
+fmt:
+    cargo fmt --all
+
 clippy:
     cargo clippy --all-targets --all-features -- -D warnings
 

@@ -1,12 +1,11 @@
 use std::{fs, path::PathBuf};
 
+use anyhow::Context;
 use log::debug;
 use tauri::{
     http::{Request, Response},
     AppHandle, Manager,
 };
-
-use crate::error::Error;
 
 pub fn image_protocol_handler(app: &AppHandle, request: Request<Vec<u8>>) -> Response<Vec<u8>> {
     let url = request.uri();
@@ -23,10 +22,7 @@ pub fn image_protocol_handler(app: &AppHandle, request: Request<Vec<u8>>) -> Res
     let app_data_dir = app
         .path()
         .app_data_dir()
-        .ok()
-        .ok_or(Error::Runtime(
-            "Could not get app data directory".to_owned(),
-        ))
+        .context("Could not get app data directory")
         .unwrap();
 
     if let Some(thumbnail_file_name) = thumbnail_file_name {

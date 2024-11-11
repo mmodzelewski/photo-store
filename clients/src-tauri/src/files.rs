@@ -5,14 +5,14 @@ use strum::{EnumString, IntoStaticStr};
 use time::OffsetDateTime;
 use uuid::Uuid;
 
-#[derive(Clone, IntoStaticStr, EnumString)]
+#[derive(Clone, IntoStaticStr, EnumString, Debug)]
 pub enum SyncStatus {
     New,
     InProgress,
     Done,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FileDescriptor {
     pub path: String,
     pub uuid: Uuid,

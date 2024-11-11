@@ -1,27 +1,7 @@
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error(transparent)]
-    IO(#[from] std::io::Error),
-    #[error(transparent)]
-    Walkdir(#[from] walkdir::Error),
-    #[error(transparent)]
-    DB(#[from] rusqlite::Error),
-    #[error(transparent)]
-    DBMigrations(#[from] rusqlite_migration::Error),
-    #[error(transparent)]
-    Tauri(#[from] tauri::Error),
-    #[error(transparent)]
-    Exif(#[from] exif::Error),
-    #[error(transparent)]
-    TimeParsing(#[from] time::error::Parse),
-    #[error(transparent)]
-    HttpError(#[from] reqwest::Error),
-    #[error("{0}")]
-    Generic(String),
-    #[error("Runtime error: {0}")]
-    Runtime(String),
-    #[error("Crypto error: {0}")]
-    CryptoError(#[from] crypto::error::Error),
+    Runtime(#[from] anyhow::Error),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

@@ -77,7 +77,7 @@ pub fn verify_data_hash(uuid: Uuid, sha256: &str, data: &Bytes) -> error::Result
 
 fn hash(data: &[u8]) -> String {
     let hash = Sha256::digest(data);
-    
+
     Base64::encode_string(&hash)
 }
 

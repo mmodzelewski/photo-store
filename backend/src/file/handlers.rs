@@ -204,7 +204,6 @@ mod tests {
     use super::*;
     use crate::file::repository::tests::InMemoryFileRepository;
     use dtos::file::FileMetadata;
-    
 
     #[tokio::test]
     async fn uploading_for_another_user_should_return_an_error() {

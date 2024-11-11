@@ -9,6 +9,7 @@ mod state;
 mod sync;
 
 use crate::{auth::AuthCtx, image::image_protocol::image_protocol_handler};
+use anyhow::Context;
 use database::Database;
 use error::{Error, Result};
 use http::HttpClient;
@@ -41,9 +42,10 @@ pub fn run() {
                 .parse_default_env()
                 .init();
 
-            let path = app.path().app_data_dir().ok().ok_or(Error::Runtime(
-                "Could not get app data directory".to_owned(),
-            ))?;
+            let path = app
+                .path()
+                .app_data_dir()
+                .context("Could not get app data directory")?;
             fs::create_dir_all(&path)?;
 
             let database = Database::init(path)?;
@@ -74,7 +76,9 @@ fn update_scopes(app: &tauri::App) -> Result<()> {
 
     for dir in dirs {
         debug!("Updating scope for {:?}", dir);
-        app.asset_protocol_scope().allow_directory(dir, true)?;
+        app.asset_protocol_scope()
+            .allow_directory(dir, true)
+            .context("Could not allow dir for protocol scope")?;
     }
 
     Ok(())

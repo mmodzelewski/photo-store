@@ -1,3 +1,4 @@
+use anyhow::Context;
 use dtos::auth::{PrivateKeyResponse, SaveRsaKeysRequest};
 use log::debug;
 use tauri::{AppHandle, Emitter};
@@ -9,10 +10,7 @@ use uuid::Uuid;
 use crate::auth::{AuthCtx, AuthStore};
 use crate::http::HttpClient;
 use crate::{database::Database, state::SyncedAppState};
-use crate::{
-    error::{Error, Result},
-    state::User,
-};
+use crate::{error::Result, state::User};
 
 #[tauri::command]
 pub(crate) async fn authenticate(
@@ -64,7 +62,9 @@ pub(crate) async fn authenticate(
 
         debug!("Listener closed.");
     }
-    app_handle.emit("authenticated", ())?;
+    app_handle
+        .emit("authenticated", ())
+        .context("Couldn't emit authenticated message to UI")?;
 
     Ok(())
 }
@@ -79,9 +79,7 @@ pub(crate) async fn get_private_key(
     let client = http_client.client();
 
     let state = app_state.read();
-    let user = state
-        .user
-        .ok_or(Error::Generic("User is not logged in".to_owned()))?;
+    let user = state.user.context("User is not logged in")?;
     let auth_store = AuthStore::load(&user.id)?;
     let auth_token = auth_store.get_auth_token();
 
@@ -89,26 +87,32 @@ pub(crate) async fn get_private_key(
         .get(format!("{}/auth/keys", http_client.url()))
         .header("Authorization", auth_token)
         .send()
-        .await?
+        .await
+        .context("Could not fetch auth keys")?
         .json::<PrivateKeyResponse>()
-        .await?;
+        .await
+        .context("Could not serialize auth keys from json")?;
 
-    let (cipher, nonce) = crypto::generate_cipher(&user.id, &passphrase)?;
+    let (cipher, nonce) =
+        crypto::generate_cipher(&user.id, &passphrase).context("Could not generate cipher")?;
     let private_key = if let Some(private_key_encrypted) = private_key.value {
         debug!("decrypting existing key");
-        let pk_der = crypto::decrypt_data_raw(&private_key_encrypted, &cipher, &nonce)?;
-        crypto::rsa::from_der(&pk_der)?
+        let pk_der = crypto::decrypt_data_raw(&private_key_encrypted, &cipher, &nonce)
+            .context("Could not decrypt private key")?;
+        crypto::rsa::from_der(&pk_der).context("Could not create RSA from DER private key")?
     } else {
         debug!("creating new key");
         let private_key = crypto::rsa::generate_key();
 
-        let pk_bytes = crypto::rsa::to_der(&private_key)?;
+        let pk_bytes =
+            crypto::rsa::to_der(&private_key).context("Could not serialize private key to der")?;
         let private_key_encrypted = crypto::encrypt_data_raw(&pk_bytes, &cipher, &nonce);
         debug!("new key created");
 
         let body = SaveRsaKeysRequest {
             private_key: private_key_encrypted.clone(),
-            public_key: crypto::rsa::to_public_key_pem(&private_key)?,
+            public_key: crypto::rsa::to_public_key_pem(&private_key)
+                .context("Could not get public key from private key")?,
         };
         client
             .post(format!("{}/auth/keys", http_client.url()))
@@ -116,7 +120,8 @@ pub(crate) async fn get_private_key(
             .header("Authorization", auth_token)
             .body(serde_json::to_string(&body).unwrap())
             .send()
-            .await?;
+            .await
+            .context("Failed sending keys to backend")?;
         debug!("key sent");
         private_key
     };

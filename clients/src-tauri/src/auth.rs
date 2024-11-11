@@ -1,5 +1,6 @@
 pub mod handlers;
 
+use anyhow::Context;
 use keyring::Entry;
 use rsa::{Oaep, RsaPrivateKey, RsaPublicKey};
 use serde::{Deserialize, Serialize};
@@ -42,43 +43,41 @@ impl AuthStore {
     pub(crate) fn load(user_id: &Uuid) -> Result<AuthStore> {
         let user_id_str = user_id.to_string();
         let entry = AuthStore::get_token_entry(&user_id_str)?;
-        let secret = entry
-            .get_password()
-            .map_err(|e| Error::Generic(format!("Could not get token: {}", e)))?;
-        serde_json::from_str(&secret)
-            .map_err(|e| Error::Generic(format!("Could not deserialize auth context: {}", e)))
+        let secret = entry.get_password().context("Could not get token")?;
+        let auth_store =
+            serde_json::from_str(&secret).context("Could not deserialize auth context")?;
+        Ok(auth_store)
     }
 
     pub(crate) fn save(&self, user_id: &Uuid) -> Result<()> {
         let user_id_str = user_id.to_string();
         let entry = AuthStore::get_token_entry(&user_id_str)?;
-        let secret = serde_json::to_string(&self)
-            .map_err(|e| Error::Generic(format!("Could not serialize auth context: {}", e)))?;
+        let secret = serde_json::to_string(&self).context("Could not serialize auth context")?;
         entry
             .set_password(&secret)
-            .map_err(|e| Error::Generic(format!("Could not update token: {}", e)))?;
+            .context("Could not update token")?;
         Ok(())
     }
 
     fn get_token_entry(user_id: &str) -> Result<Entry> {
-        Entry::new("dev.modzelewski.photo-store", user_id)
-            .map_err(|e| Error::Generic(format!("Could not get token entry: {}", e)))
+        let entry = Entry::new("dev.modzelewski.photo-store", user_id)
+            .context("Could not get token entry")?;
+        Ok(entry)
     }
 }
 
 impl TryFrom<AuthStore> for AuthCtx {
     type Error = Error;
 
-    fn try_from(store: AuthStore) -> std::result::Result<Self, Self::Error> {
-        store
+    fn try_from(store: AuthStore) -> Result<Self> {
+        let ctx = store
             .private_key
             .map(|private_key| AuthCtx {
                 auth_token: store.auth_token,
                 private_key,
             })
-            .ok_or(Error::Generic(
-                "Private key missing, cannot create auth ctx".to_string(),
-            ))
+            .context("Private key missing, cannot create auth ctx")?;
+        Ok(ctx)
     }
 }
 

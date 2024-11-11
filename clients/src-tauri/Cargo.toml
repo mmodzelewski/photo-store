@@ -17,6 +17,7 @@ tauri-build = { version = "2.0.2", features = [] }
 
 [dependencies]
 aes-gcm = "0.10.3"
+anyhow = "1.0.93"
 base64ct = { version = "1.6.0", features = ["std"] }
 crypto = { version = "0.1.0", path = "../../crates/crypto" }
 dtos = { version = "0.1.0", path = "../../crates/dtos" }

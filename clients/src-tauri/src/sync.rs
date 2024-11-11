@@ -1,10 +1,11 @@
+use anyhow::Context;
 use crypto::encrypt_data;
 use dtos::file::FilesUploadRequest;
 use log::debug;
 use reqwest::multipart::Part;
 use std::fs;
 
-use crate::error::{Error, Result};
+use crate::error::Result;
 use crate::files::FileDescriptorWithDecodedKey;
 use crate::state::SyncedAppState;
 use crate::{database::Database, http::HttpClient};
@@ -18,12 +19,8 @@ pub(crate) async fn sync_images(
     debug!("sync_images called");
 
     let state = app_state.read();
-    let user = state
-        .user
-        .ok_or(Error::Generic("User is not logged in".to_owned()))?;
-    let auth_ctx = state
-        .auth_ctx
-        .ok_or(Error::Generic("User is not authenticated".to_owned()))?;
+    let user = state.user.context("User is not logged in")?;
+    let auth_ctx = state.auth_ctx.context("User is not authenticated")?;
 
     let descriptors_with_keys: Vec<_> = database
         .get_indexed_images()?
@@ -62,7 +59,8 @@ pub(crate) async fn sync_images(
         let descriptor = descriptor_with_key.descriptor();
         let key = descriptor_with_key.key();
         let file = fs::read(&descriptor.path).unwrap();
-        let (encrypted_data, encrypted_data_hash) = encrypt_data(descriptor, key, file.into())?;
+        let (encrypted_data, encrypted_data_hash) = encrypt_data(descriptor, key, file.into())
+            .with_context(|| format!("Could not encrypt file {:?}", descriptor.path))?;
 
         let form = reqwest::multipart::Form::new().part(
             "file",

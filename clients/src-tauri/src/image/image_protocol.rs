@@ -33,11 +33,11 @@ pub fn image_protocol_handler(app: &AppHandle, request: Request<Vec<u8>>) -> Res
         let thumbnail_path = app_data_dir.join("thumbnails").join(thumbnail_file_name);
         debug!("thumbnail_path: {:?}", thumbnail_path);
         let file = fs::read(thumbnail_path).unwrap();
-        return Response::builder().status(200).body(file).unwrap();
+        Response::builder().status(200).body(file).unwrap()
     } else {
-        return Response::builder()
+        Response::builder()
             .status(400)
             .body("Invalid image URL".into())
-            .unwrap();
+            .unwrap()
     }
 }

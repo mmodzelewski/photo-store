@@ -76,7 +76,7 @@ impl GoogleAuth {
         )
         .set_redirect_uri(redirect_url);
 
-        return GoogleAuth { client_id, client };
+        GoogleAuth { client_id, client }
     }
 }
 
@@ -102,7 +102,7 @@ pub(crate) async fn init_authentication(State(state): State<AppState>) -> Result
     )
     .await?;
 
-    Ok(Redirect::to(&authorize_url.to_string()))
+    Ok(Redirect::to(authorize_url.as_ref()))
 }
 
 #[derive(Deserialize)]
@@ -130,7 +130,7 @@ pub(crate) async fn complete_authentication(
     let db = &state.db;
     let code = AuthorizationCode::new(auth_response.code.clone());
     let csrf = CsrfToken::new(auth_response.state.clone());
-    let auth_request = AuthRepository::get_auth_request_by_state(db, &csrf.secret()).await?;
+    let auth_request = AuthRepository::get_auth_request_by_state(db, csrf.secret()).await?;
 
     let token_response = client
         .exchange_code(code)
@@ -159,8 +159,8 @@ pub(crate) async fn complete_authentication(
     let auth_token = Uuid::new_v4().to_string();
     AuthRepository::save_auth_token(db, &user_id.0, &auth_token).await?;
 
-    return Ok(Json(LoginResponse {
+    Ok(Json(LoginResponse {
         user_id: user_id.0,
         auth_token,
-    }));
+    }))
 }

@@ -59,7 +59,7 @@ pub(crate) async fn authenticate(
 
         let done_url = "http://localhost:5173/auth/desktop/complete";
         let response = tiny_http::Response::empty(303)
-            .with_header(Header::from_bytes(&b"Location"[..], &done_url.as_bytes()[..]).unwrap());
+            .with_header(Header::from_bytes(&b"Location"[..], done_url.as_bytes()).unwrap());
         request.respond(response).unwrap();
 
         debug!("Listener closed.");

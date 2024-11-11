@@ -48,7 +48,7 @@ pub(super) async fn register(
 
     let user_id = user_id.to_string();
     debug!("User registered: {}, {}", user.username, user_id);
-    return Ok(Json(UserRegisterResponse { user_id }));
+    Ok(Json(UserRegisterResponse { user_id }))
 }
 
 pub(crate) async fn register_or_get_with_external_provider(

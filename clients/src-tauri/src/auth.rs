@@ -93,7 +93,7 @@ impl AuthCtx {
         |data| {
             let padding = Oaep::new::<Sha256>();
 
-            self.private_key.decrypt(padding, &data).map_err(|e| {
+            self.private_key.decrypt(padding, data).map_err(|e| {
                 crypto::error::Error::EncryptionError(format!("Could not decrypt data: {}", e))
             })
         }

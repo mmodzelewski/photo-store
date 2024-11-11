@@ -68,7 +68,7 @@ async fn upload_files_metadata_internal(
             created_at: item.date,
             added_at: OffsetDateTime::now_utc(),
             sha256: item.sha256.clone(),
-            owner_id: request.user_id.clone(),
+            owner_id: request.user_id,
             uploader_id: ctx.user_id(),
             enc_key: item.key.clone(),
         };
@@ -120,7 +120,7 @@ pub(super) async fn upload_file(
         Error::FileUploadError(format!("Could not parse sha256 checksum header {}", e))
     })?;
 
-    return match file.state {
+    match file.state {
         FileState::New => {
             repo.update_state(&file_id, FileState::SyncInProgress)
                 .await?;
@@ -149,7 +149,7 @@ pub(super) async fn upload_file(
                 file_id, file.state
             )))
         }
-    };
+    }
 }
 
 async fn upload(file: &File, field: Field<'_>, sha256: &str, config: &StorageConfig) -> Result<()> {
@@ -196,7 +196,7 @@ async fn upload(file: &File, field: Field<'_>, sha256: &str, config: &StorageCon
         })?;
 
     debug!("File {} upload result: {:?}", file.uuid, result);
-    return Ok(());
+    Ok(())
 }
 
 #[cfg(test)]
@@ -204,7 +204,7 @@ mod tests {
     use super::*;
     use crate::file::repository::tests::InMemoryFileRepository;
     use dtos::file::FileMetadata;
-    use std::future::Future;
+    
 
     #[tokio::test]
     async fn uploading_for_another_user_should_return_an_error() {

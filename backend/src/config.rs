@@ -38,6 +38,6 @@ impl Config {
             })?;
 
         info!("Successfully loaded configuration");
-        return Ok(settings);
+        Ok(settings)
     }
 }

@@ -62,7 +62,7 @@ pub fn run() {
             app.manage(SyncedAppState::new(user, auth_ctx));
 
             app.manage(HttpClient::new("http://localhost:3000"));
-            return Ok(());
+            Ok(())
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -77,5 +77,5 @@ fn update_scopes(app: &tauri::App) -> Result<()> {
         app.asset_protocol_scope().allow_directory(dir, true)?;
     }
 
-    return Ok(());
+    Ok(())
 }

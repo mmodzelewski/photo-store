@@ -72,7 +72,7 @@ pub(crate) fn save_images_dirs(
 
     generate_thumbnails(&descriptors, &app_handle)?;
 
-    return Ok(());
+    Ok(())
 }
 
 fn generate_thumbnails(files: &Vec<FileDescriptor>, app_handle: &AppHandle) -> Result<()> {
@@ -89,8 +89,7 @@ fn generate_thumbnails(files: &Vec<FileDescriptor>, app_handle: &AppHandle) -> R
     for (done, file) in files.iter().enumerate() {
         debug!("Generating thumbnail for {}", &file.path);
         let thumbnail_paths = crate::image::generate_thumbnails(file, &thumbnails_dir);
-        let thumbnail_path = thumbnail_paths
-            .get(0)
+        let thumbnail_path = thumbnail_paths.first()
             .unwrap()
             .to_str()
             .unwrap_or("")

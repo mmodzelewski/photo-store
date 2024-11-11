@@ -51,7 +51,7 @@ pub(crate) async fn ctx_resolver(
         Err(e) => Err(Error::AuthError(e)),
     };
 
-    let result_ctx = user_id.map(|user_id| Ctx::new(user_id));
+    let result_ctx = user_id.map(Ctx::new);
 
     request.extensions_mut().insert(result_ctx);
 

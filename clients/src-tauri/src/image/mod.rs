@@ -22,7 +22,7 @@ impl Image {
         let file = ImageReader::open(path).unwrap();
         let img = file.decode().unwrap();
 
-        return Image { data: img };
+        Image { data: img }
     }
 
     fn get(&self) -> fr::Image {
@@ -45,10 +45,10 @@ struct Size {
 
 impl Size {
     fn get_non_zero_width(&self) -> NonZeroU32 {
-        return NonZeroU32::new(self.width).unwrap();
+        NonZeroU32::new(self.width).unwrap()
     }
     fn get_non_zero_height(&self) -> NonZeroU32 {
-        return NonZeroU32::new(self.height).unwrap();
+        NonZeroU32::new(self.height).unwrap()
     }
 }
 
@@ -74,7 +74,7 @@ pub fn generate_thumbnails(file_desc: &FileDescriptor, folder_path: &Path) -> Ve
         false,
     ));
 
-    return thumbnails;
+    thumbnails
 }
 
 fn generate_thumbnail_keep_aspect(
@@ -119,7 +119,7 @@ fn generate_thumbnail_keep_aspect(
             ColorType::Rgb8,
         )
         .unwrap();
-    return thumbnail_path;
+    thumbnail_path
 }
 
 fn calculate_cover_size(original: Size, max: u32) -> Size {
@@ -130,15 +130,15 @@ fn calculate_cover_size(original: Size, max: u32) -> Size {
     let ratio = original.width as f32 / original.height as f32;
 
     if ratio > 1.0 {
-        return Size {
+        Size {
             width: (max as f32 * ratio) as u32,
             height: max,
-        };
+        }
     } else {
-        return Size {
+        Size {
             width: max,
             height: (max as f32 / ratio) as u32,
-        };
+        }
     }
 }
 
@@ -150,14 +150,14 @@ fn calculate_contain_size(original: Size, max: u32) -> Size {
     let ratio = original.width as f32 / original.height as f32;
 
     if ratio > 1.0 {
-        return Size {
+        Size {
             width: max,
             height: (max as f32 / ratio) as u32,
-        };
+        }
     } else {
-        return Size {
+        Size {
             width: (max as f32 * ratio) as u32,
             height: max,
-        };
+        }
     }
 }

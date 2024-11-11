@@ -65,20 +65,20 @@ pub fn encrypt(data: &[u8], public_key: &RsaPublicKey) -> Vec<u8> {
 }
 
 pub fn verify_data_hash(uuid: Uuid, sha256: &str, data: &Bytes) -> error::Result<()> {
-    let data_hash = hash(&data);
+    let data_hash = hash(data);
     if data_hash != sha256 {
         return Err(Error::EncryptionError(format!(
             "File {} hash mismatch, expected {}, got {}",
             uuid, sha256, data_hash
         )));
     }
-    return Ok(());
+    Ok(())
 }
 
 fn hash(data: &[u8]) -> String {
     let hash = Sha256::digest(data);
-    let encoded = Base64::encode_string(&hash);
-    return encoded;
+    
+    Base64::encode_string(&hash)
 }
 
 fn generate_nonce_from_uuid(uuid: Uuid) -> Nonce<U12> {

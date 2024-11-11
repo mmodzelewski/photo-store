@@ -21,10 +21,10 @@ pub(super) async fn login(
     let auth_token = Uuid::new_v4().to_string();
     AuthRepository::save_auth_token(db, &user_id, &auth_token).await?;
 
-    return Ok(Json(LoginResponse {
+    Ok(Json(LoginResponse {
         user_id,
         auth_token,
-    }));
+    }))
 }
 
 pub(super) async fn save_key(

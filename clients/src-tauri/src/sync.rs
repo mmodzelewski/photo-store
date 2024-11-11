@@ -86,5 +86,5 @@ pub(crate) async fn sync_images(
             .await;
         debug!("{:?}", res);
     }
-    return Ok(());
+    Ok(())
 }

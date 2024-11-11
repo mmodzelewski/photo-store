@@ -54,9 +54,9 @@ impl Database {
         debug!("Database connection opened");
         // conn.pragma_update(None, "journal_mode", &"WAL").unwrap(); // verify
         migrations.to_latest(&mut conn)?;
-        return Ok(Database {
+        Ok(Database {
             connection: Mutex::new(conn),
-        });
+        })
     }
 
     pub fn get_user(&self) -> Result<Option<User>> {
@@ -94,7 +94,7 @@ impl Database {
                 .collect::<std::result::Result<Vec<_>, _>>()?;
         }
         tx.commit()?;
-        return Ok(());
+        Ok(())
     }
 
     pub fn has_images_dirs(&self) -> Result<bool> {
@@ -104,7 +104,7 @@ impl Database {
             row.get::<usize, usize>(0)
         })?;
 
-        return Ok(dirs_count > 0);
+        Ok(dirs_count > 0)
     }
 
     pub fn get_directories(&self) -> Result<Vec<String>> {
@@ -118,7 +118,7 @@ impl Database {
         for row in rows {
             dirs.push(row?);
         }
-        return Ok(dirs);
+        Ok(dirs)
     }
 
     pub fn index_files(&self, descriptors: &Vec<FileDescriptor>) -> Result<()> {
@@ -142,7 +142,7 @@ impl Database {
         }
 
         tx.commit()?;
-        return Ok(());
+        Ok(())
     }
 
     pub fn get_indexed_images(&self) -> Result<Vec<FileDescriptor>> {
@@ -164,7 +164,7 @@ impl Database {
             descriptors.push(row?);
         }
         debug!("Got {} files from index", descriptors.len());
-        return Ok(descriptors);
+        Ok(descriptors)
     }
 
     fn get_connection(&self) -> Result<MutexGuard<'_, Connection>> {
@@ -187,7 +187,7 @@ impl Database {
 
         tx.commit()?;
 
-        return Ok(());
+        Ok(())
     }
 }
 

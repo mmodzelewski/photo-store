@@ -1,6 +1,6 @@
 <script lang="ts">
-
+    import { BACKEND_URL } from '$lib/config';
 </script>
 
 <div>Sign in</div>
-<a href="http://localhost:3000/auth/providers/google/init">Sign in with Google</a>
+<a href="{BACKEND_URL}/auth/providers/google/init">Sign in with Google</a>

@@ -63,7 +63,10 @@ pub fn run() {
 
             app.manage(SyncedAppState::new(user, auth_ctx));
 
-            app.manage(HttpClient::new("http://localhost:3000"));
+            let api_url = option_env!("PHOTO_STORE_API_URL").unwrap_or("http://localhost:3000");
+            debug!("API URL: {}", api_url);
+            app.manage(HttpClient::new(&api_url));
+
             Ok(())
         })
         .run(tauri::generate_context!())

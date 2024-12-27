@@ -167,6 +167,31 @@ impl Database {
         Ok(())
     }
 
+    pub fn find_files_by_sync_status(&self, status: SyncStatus) -> Result<Vec<FileDescriptor>> {
+        let conn = self.get_connection();
+        let mut statement = conn
+            .prepare("SELECT path, uuid, date, sha256, key, status FROM file WHERE status = ?1 ORDER BY date DESC")
+            .context("Could not prepare statement for finding files by status")?;
+        let rows = statement
+            .query_map([status], |row| {
+                Ok(FileDescriptor {
+                    path: row.get(0)?,
+                    uuid: row.get(1)?,
+                    date: row.get(2)?,
+                    sha256: row.get(3)?,
+                    key: row.get(4)?,
+                    status: row.get(5)?,
+                })
+            })
+            .context("Could not map indexed images to file descriptors")?;
+        let mut descriptors = Vec::new();
+        for row in rows {
+            descriptors.push(row.context("Failed mapping an item to file descriptor")?);
+        }
+        debug!("Got {} files from index", descriptors.len());
+        Ok(descriptors)
+    }
+
     pub fn get_indexed_images(&self) -> Result<Vec<FileDescriptor>> {
         let conn = self.get_connection();
         let mut statement = conn
@@ -215,6 +240,16 @@ impl Database {
 
         tx.commit().context("Could not commit DB transaction")?;
 
+        Ok(())
+    }
+
+    pub fn update_file_status(&self, uuid: &Uuid, status: SyncStatus) -> Result<()> {
+        let conn = self.get_connection();
+        conn.execute(
+            "UPDATE file SET status = ?1 WHERE uuid = ?2",
+            (status, uuid.as_bytes()),
+        )
+        .context("Failed to update file status")?;
         Ok(())
     }
 }

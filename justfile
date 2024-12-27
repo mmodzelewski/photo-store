@@ -1,6 +1,9 @@
 run-desktop:
     cd clients && cargo tauri dev
 
+run-desktop-release:
+    cd clients && cargo tauri dev --release
+
 run-backend:
     cargo run -p backend
 

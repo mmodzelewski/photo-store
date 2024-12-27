@@ -36,7 +36,7 @@ struct ThumbnailsGenerated {
 }
 
 #[tauri::command]
-pub(crate) fn save_images_dirs(
+pub(crate) async fn save_images_dirs(
     dirs: Vec<&str>,
     app_handle: AppHandle,
     database: tauri::State<'_, Database>,

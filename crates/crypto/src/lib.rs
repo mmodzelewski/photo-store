@@ -32,18 +32,26 @@ pub fn encrypt_data<File: CryptoFileDesc>(
     Ok((encrypted_data, data_hash))
 }
 
-pub fn decode_encryption_key<File: CryptoFileDesc>(
+pub fn decrypt_data(
+    file_uuid: Uuid,
+    encryption_key: &Key<Aes256Gcm>,
+    encrypted_data: Bytes,
+) -> error::Result<Vec<u8>> {
+    let cipher = Aes256Gcm::new(encryption_key);
+    let nonce = generate_nonce_from_uuid(file_uuid);
+
+    cipher
+        .decrypt(&nonce, encrypted_data.as_ref())
+        .map_err(|e| Error::EncryptionError(format!("Failed to decrypt data: {}", e)))
+}
+
+pub fn decode_encryption_key(
     key: &str,
     decrypt_fn: impl Fn(&[u8]) -> error::Result<Vec<u8>>,
-    file: &File,
 ) -> error::Result<Key<Aes256Gcm>> {
     let encryption_key = Base64::decode_vec(key)
         .map_err(|e| {
-            Error::EncryptionError(format!(
-                "Could not decode encryption key for file {}, error {}",
-                file.uuid(),
-                e
-            ))
+            Error::EncryptionError(format!("Could not decode encryption key, error {}", e))
         })
         .and_then(|key| decrypt_fn(&key))
         .map(|key| Key::<Aes256Gcm>::clone_from_slice(&key))?;

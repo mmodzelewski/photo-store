@@ -1,5 +1,6 @@
 use aws_config::BehaviorVersion;
 use aws_sdk_s3::primitives::ByteStream;
+use axum::body::Bytes;
 use axum::http::HeaderMap;
 use axum::{
     extract::{multipart::Field, Multipart, Path, State},
@@ -9,7 +10,7 @@ use time::OffsetDateTime;
 use tracing::{debug, error, warn};
 use uuid::Uuid;
 
-use dtos::file::FilesUploadRequest;
+use dtos::file::{FileMetadata, FilesUploadRequest};
 
 use super::{repository::DbFileRepository, File};
 use crate::config::StorageConfig;
@@ -78,6 +79,29 @@ async fn upload_files_metadata_internal(
     }
 
     Ok(())
+}
+
+pub(super) async fn get_files_metadata(
+    State(state): State<AppState>,
+    ctx: Ctx,
+) -> Result<Json<Vec<FileMetadata>>> {
+    debug!("Getting files metadata for user {}.", ctx.user_id());
+
+    let repo = DbFileRepository { db: state.db };
+    let files = repo.find_by_user_id(&ctx.user_id()).await?;
+
+    let metadata: Vec<FileMetadata> = files
+        .into_iter()
+        .map(|file| FileMetadata {
+            path: file.path,
+            uuid: file.uuid,
+            date: file.created_at,
+            sha256: file.sha256,
+            key: file.enc_key,
+        })
+        .collect();
+
+    Ok(Json(metadata))
 }
 
 pub(super) async fn upload_file(
@@ -199,16 +223,84 @@ async fn upload(file: &File, field: Field<'_>, sha256: &str, config: &StorageCon
     Ok(())
 }
 
+pub(super) async fn download_file(
+    State(state): State<AppState>,
+    ctx: Ctx,
+    Path(file_id): Path<Uuid>,
+) -> Result<(HeaderMap, Bytes)> {
+    debug!(
+        "Downloading file: {:?}. Authenticated user {}",
+        file_id,
+        ctx.user_id()
+    );
+    let repo = DbFileRepository { db: state.db };
+
+    let file = repo
+        .find(&file_id)
+        .await?
+        .ok_or_else(|| Error::FileNotFound(file_id))?;
+
+    if file.owner_id != ctx.user_id() {
+        return Err(Error::Unauthorized);
+    }
+
+    let storage_config = &state.config.storage;
+    let aws_config = aws_config::defaults(BehaviorVersion::latest())
+        .region("auto")
+        .endpoint_url(&storage_config.url)
+        .load()
+        .await;
+    let client = aws_sdk_s3::Client::new(&aws_config);
+
+    let file_key = format!("files/{}/{}/original", file.owner_id, file.uuid);
+    debug!("Downloading file {} data", &file_key);
+    let get_object = client
+        .get_object()
+        .bucket(&storage_config.bucket_name)
+        .key(&file_key)
+        .send()
+        .await
+        .map_err(|e| {
+            let message = format!("Could not download file {}, error: {}", file_id, e);
+            error!(message);
+            Error::FileDownloadError(message)
+        })?;
+
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        http::header::CONTENT_TYPE,
+        get_object
+            .content_type()
+            .unwrap_or("application/octet-stream")
+            .parse()
+            .unwrap(),
+    );
+    headers.insert(
+        http::header::CONTENT_DISPOSITION,
+        format!("attachment; filename=\"{}\"", file.name)
+            .parse()
+            .unwrap(),
+    );
+
+    let file_bytes = get_object
+        .body
+        .collect()
+        .await
+        .map_err(|e| Error::FileDownloadError("Could not fetch".to_owned()))?
+        .into_bytes();
+    Ok((headers, file_bytes))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::file::repository::tests::InMemoryFileRepository;
-    use dtos::file::FileMetadata;
+    use time::OffsetDateTime;
 
     #[tokio::test]
     async fn uploading_for_another_user_should_return_an_error() {
         // given
-        let mut repo = InMemoryFileRepository { files: vec![] };
+        let mut repo = InMemoryFileRepository::new();
         let request = FilesUploadRequest {
             user_id: Uuid::new_v4(),
             files: vec![],
@@ -230,7 +322,7 @@ mod tests {
     #[tokio::test]
     async fn should_save_metadata_in_repository() {
         // given
-        let mut repo = InMemoryFileRepository { files: vec![] };
+        let mut repo = InMemoryFileRepository::new();
         let user_id = Uuid::new_v4();
         let request = FilesUploadRequest {
             user_id,

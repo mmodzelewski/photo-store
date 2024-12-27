@@ -8,6 +8,7 @@ use super::{File, FileState};
 pub(super) trait FileRepository {
     async fn exists(&self, uuid: &Uuid) -> Result<bool>;
     async fn find(&self, uuid: &Uuid) -> Result<Option<File>>;
+    async fn find_by_user_id(&self, user_id: &Uuid) -> Result<Vec<File>>;
     async fn save(&mut self, file: &File) -> Result<()>;
     async fn update_state(&self, file_id: &Uuid, state: FileState) -> Result<()>;
 }
@@ -44,6 +45,25 @@ impl FileRepository for DbFileRepository {
         .map_err(|e| crate::error::Error::DbError(format!("Could not get file {}", e)))?;
 
         Ok(file)
+    }
+
+    // todo: get files that finished uploading
+    async fn find_by_user_id(&self, user_id: &Uuid) -> Result<Vec<File>> {
+        let files = sqlx::query_as!(
+            File,
+            r#"SELECT
+            path, name, state as "state: _", uuid,
+            f.created_at, added_at, sha256,
+            owner_id, uploader_id, enc_key
+            FROM file f
+            WHERE owner_id = $1"#,
+            user_id
+        )
+        .fetch_all(&self.db)
+        .await
+        .map_err(|e| crate::error::Error::DbError(format!("Could not get files for user {}", e)))?;
+
+        Ok(files)
     }
 
     async fn save(&mut self, file: &File) -> Result<()> {
@@ -93,6 +113,12 @@ pub mod tests {
         pub files: Vec<File>,
     }
 
+    impl InMemoryFileRepository {
+        pub fn new() -> Self {
+            Self { files: Vec::new() }
+        }
+    }
+
     impl FileRepository for InMemoryFileRepository {
         async fn exists(&self, uuid: &Uuid) -> Result<bool> {
             let exists = self.files.iter().any(|f| f.uuid == *uuid);
@@ -101,6 +127,15 @@ pub mod tests {
 
         async fn find(&self, uuid: &Uuid) -> Result<Option<File>> {
             todo!()
+        }
+
+        async fn find_by_user_id(&self, user_id: &Uuid) -> Result<Vec<File>> {
+            Ok(self
+                .files
+                .iter()
+                .filter(|f| f.owner_id == *user_id)
+                .cloned()
+                .collect())
         }
 
         async fn save(&mut self, file: &File) -> Result<()> {

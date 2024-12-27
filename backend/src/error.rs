@@ -2,6 +2,7 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
+use uuid;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -9,6 +10,12 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     #[error("File upload error: {0}")]
     FileUploadError(String),
+    #[error("File download error: {0}")]
+    FileDownloadError(String),
+    #[error("File not found: {0}")]
+    FileNotFound(uuid::Uuid),
+    #[error("Unauthorized")]
+    Unauthorized,
     #[error("Database error: {0}")]
     DbError(String),
     #[error("Database migration error: {0}")]

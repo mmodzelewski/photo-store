@@ -267,9 +267,12 @@ impl Database {
         let conn = self.get_connection();
         conn.execute(
             "UPDATE file SET status = ?1 WHERE uuid = ?2",
-            (status, uuid.as_bytes()),
+            (&status, uuid.as_bytes()),
         )
-        .context("Failed to update file status")?;
+        .context(format!(
+            "Failed to change file ({}) status to {:?}",
+            uuid, &status
+        ))?;
         Ok(())
     }
 }

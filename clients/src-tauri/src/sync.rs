@@ -1,6 +1,7 @@
 use crate::auth::AuthCtx;
 use crate::error::Result;
-use crate::files::{FileDescriptorWithDecodedKey, SyncStatus};
+use crate::files::SyncStatus::{Done, InProgress};
+use crate::files::{FileDescriptor, FileDescriptorWithDecodedKey, SyncStatus};
 use crate::state::{SyncedAppState, User};
 use crate::{database::Database, http::HttpClient};
 use anyhow::{anyhow, Context};
@@ -10,10 +11,11 @@ use log::{debug, error, warn};
 use reqwest::multipart::Part;
 use std::collections::HashSet;
 use std::fs;
-use tauri::State;
+use tauri::{AppHandle, Emitter, State};
 
 #[tauri::command]
 pub(crate) async fn sync_images(
+    app_handle: AppHandle,
     database: State<'_, Database>,
     app_state: State<'_, SyncedAppState>,
     http_client: State<'_, HttpClient>,
@@ -24,12 +26,13 @@ pub(crate) async fn sync_images(
     let user = state.user.context("User is not logged in")?;
     let auth_ctx = state.auth_ctx.context("User is not authenticated")?;
 
-    download_new_files(&database, &http_client, &auth_ctx).await?;
+    download_new_files(&app_handle, &database, &http_client, &auth_ctx).await?;
     upload_new_files(&database, &http_client, user, &auth_ctx).await?;
     Ok(())
 }
 
 async fn download_new_files(
+    app_handle: &AppHandle,
     database: &State<'_, Database>,
     http_client: &State<'_, HttpClient>,
     auth_ctx: &AuthCtx,
@@ -56,13 +59,24 @@ async fn download_new_files(
     let dirs = database.get_directories()?;
     // todo: take proper directory for downloads
     let output_dir = dirs.first().ok_or(anyhow!("No directories selected"))?;
+    let mut new_files_downloaded = false;
     for remote_file in remote_files.iter() {
         if !local_file_uuids_set.contains(&remote_file.uuid) {
-            // todo: save files to db
             debug!(
                 "Fetching new file: {} {:?}",
                 remote_file.uuid, remote_file.path
             );
+            let path = format!("{}/{}.jpg", output_dir, remote_file.uuid);
+            let descriptor = FileDescriptor {
+                path: path.to_owned(),
+                uuid: remote_file.uuid,
+                date: remote_file.date,
+                sha256: remote_file.sha256.to_owned(),
+                key: remote_file.key.to_owned(),
+                status: InProgress,
+            };
+            let descriptors = vec![descriptor];
+            database.index_files(&descriptors)?;
 
             let data_response = client
                 .get(format!(
@@ -87,12 +101,18 @@ async fn download_new_files(
                 ))?;
             let decrypted_data =
                 decrypt_data(remote_file.uuid, &encryption_key, encrypted_data).unwrap();
-            fs::write(
-                format!("{}/{}.jpg", output_dir, remote_file.uuid),
-                decrypted_data,
-            )
-            .unwrap();
+            fs::write(&path, decrypted_data).context(format!(
+                "Failed to save file data, uuid: {}, path {}",
+                remote_file.uuid, &path
+            ))?;
+            database.update_file_status(&remote_file.uuid, Done)?;
+            new_files_downloaded = true;
         }
+    }
+    if new_files_downloaded {
+        app_handle
+            .emit("index-updated", ())
+            .context("Couldn't emit index-updated")?;
     }
     Ok(())
 }

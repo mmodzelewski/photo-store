@@ -1,17 +1,73 @@
 pub(crate) mod image_protocol;
 
+use crate::error::Result;
+use crate::files::FileDescriptor;
 use ::image::codecs::jpeg::JpegEncoder;
 use ::image::io::Reader as ImageReader;
 use ::image::{ColorType, ImageEncoder};
+use anyhow::Context;
 use fast_image_resize as fr;
 use fr::FilterType;
 use image::DynamicImage;
+use std::fmt::Display;
 use std::fs::{self, File};
 use std::io::BufWriter;
 use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
+use strum::{Display, EnumString};
 
-use crate::files::FileDescriptor;
+#[derive(EnumString, Display)]
+#[strum(serialize_all = "lowercase")]
+pub enum ThumbnailMode {
+    Cover,
+    Contain,
+}
+
+pub struct ThumbnailParams {
+    max_size: u32,
+    mode: ThumbnailMode,
+}
+
+impl ThumbnailParams {
+    pub fn from_str(max_size: &str, mode: &str) -> Result<Self> {
+        let max_size = max_size
+            .parse()
+            .context(format!("Cannot parse {} to u32", max_size))?;
+        let mode = mode
+            .parse()
+            .context(format!("Cannot parse {} to ThumbnailMode", mode))?;
+        Ok(Self { max_size, mode })
+    }
+
+    fn cover(max_size: u32) -> Self {
+        Self {
+            max_size,
+            mode: ThumbnailMode::Cover,
+        }
+    }
+
+    fn contain(max_size: u32) -> Self {
+        Self {
+            max_size,
+            mode: ThumbnailMode::Contain,
+        }
+    }
+}
+
+impl Default for ThumbnailParams {
+    fn default() -> Self {
+        Self {
+            max_size: 1920,
+            mode: ThumbnailMode::Contain,
+        }
+    }
+}
+
+impl Display for ThumbnailParams {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}-{}", self.max_size, self.mode)
+    }
+}
 
 struct Image {
     data: DynamicImage,
@@ -28,13 +84,13 @@ impl Image {
     fn get(&self) -> fr::Image {
         let width = NonZeroU32::new(self.data.width()).unwrap();
         let height = NonZeroU32::new(self.data.height()).unwrap();
-        return fr::Image::from_vec_u8(
+        fr::Image::from_vec_u8(
             width,
             height,
             self.data.to_rgb8().into_raw(),
             fr::PixelType::U8x3,
         )
-        .unwrap();
+        .unwrap()
     }
 }
 
@@ -52,47 +108,55 @@ impl Size {
     }
 }
 
-pub fn generate_thumbnails(file_desc: &FileDescriptor, folder_path: &Path) -> Vec<PathBuf> {
+pub fn generate_thumbnails(file_desc: &FileDescriptor, output_directory: &Path) -> Vec<PathBuf> {
     let mut thumbnails = Vec::new();
 
     let img = Image::open(&file_desc.path);
     let img = img.get();
 
+    let cover_thumbnail = ThumbnailParams::cover(512);
     thumbnails.push(generate_thumbnail_keep_aspect(
         &img,
         file_desc,
-        folder_path,
-        512,
-        true,
+        output_directory,
+        &cover_thumbnail,
     ));
 
+    let contain_thumbnail = ThumbnailParams::contain(1920);
     thumbnails.push(generate_thumbnail_keep_aspect(
         &img,
         file_desc,
-        folder_path,
-        1920,
-        false,
+        output_directory,
+        &contain_thumbnail,
     ));
 
     thumbnails
 }
 
+pub fn generate_thumbnail(
+    file_desc: &FileDescriptor,
+    output_directory: &Path,
+    thumbnail_params: &ThumbnailParams,
+) -> PathBuf {
+    let img = Image::open(&file_desc.path);
+    let img = img.get();
+    generate_thumbnail_keep_aspect(&img, file_desc, output_directory, thumbnail_params)
+}
+
 fn generate_thumbnail_keep_aspect(
     img: &fr::Image,
     file_desc: &FileDescriptor,
-    folder_path: &Path,
-    max_size: u32,
-    cover: bool,
+    output_directory: &Path,
+    thumbnail_params: &ThumbnailParams,
 ) -> PathBuf {
     let src_view = img.view();
     let original_size = Size {
         width: src_view.width().get(),
         height: src_view.height().get(),
     };
-    let calculated_size = if cover {
-        calculate_cover_size(original_size, max_size)
-    } else {
-        calculate_contain_size(original_size, max_size)
+    let calculated_size = match thumbnail_params.mode {
+        ThumbnailMode::Cover => calculate_cover_size(original_size, thumbnail_params.max_size),
+        ThumbnailMode::Contain => calculate_contain_size(original_size, thumbnail_params.max_size),
     };
     let dst_width = calculated_size.get_non_zero_width();
     let dst_height = calculated_size.get_non_zero_height();
@@ -104,10 +168,9 @@ fn generate_thumbnail_keep_aspect(
     resizer.resize(&src_view, &mut dst_view).unwrap();
 
     let uuid = &file_desc.uuid;
-    let image_thumnails_folder = folder_path.join(uuid.to_string());
-    fs::create_dir_all(&image_thumnails_folder).unwrap();
-    let cover_label = if cover { "cover" } else { "contain" };
-    let thumbnail_path = image_thumnails_folder.join(format!("{}-{}", max_size, cover_label));
+    let image_thumbnails_dir = output_directory.join(uuid.to_string());
+    fs::create_dir_all(&image_thumbnails_dir).unwrap();
+    let thumbnail_path = image_thumbnails_dir.join(thumbnail_params.to_string());
     let thumbnail_file = File::create(&thumbnail_path).unwrap();
     let mut result_buf = BufWriter::new(thumbnail_file);
 

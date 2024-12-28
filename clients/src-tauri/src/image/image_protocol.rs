@@ -1,39 +1,48 @@
-use std::{fs, path::PathBuf};
-
-use anyhow::Context;
+use crate::database::Database;
+use crate::error::Result;
+use crate::image::{generate_thumbnail, ThumbnailParams};
+use anyhow::{anyhow, Context};
 use log::debug;
-use tauri::{
-    http::{Request, Response},
-    AppHandle, Manager,
-};
+use std::path::Path;
+use std::{fs, path::PathBuf};
+use uuid::Uuid;
 
-pub fn image_protocol_handler(app: &AppHandle, request: Request<Vec<u8>>) -> Response<Vec<u8>> {
-    let url = request.uri();
-    let path = url.path()[1..].to_owned();
+pub fn image_protocol_handler(
+    database: &Database,
+    app_data_dir: &Path,
+    path: &str,
+) -> Result<Vec<u8>> {
     let segments = path.split('/').collect::<Vec<_>>();
-
-    let thumbnail_file_name = match segments[..] {
-        [id, "original"] => Some(PathBuf::from(id).join("1920-contain")),
-        [id, size, mode] => Some(PathBuf::from(id).join(format!("{}-{}", size, mode))),
+    let (id, thumbnail_params) = match segments[..] {
+        [id, "original"] => Some((id.to_owned(), ThumbnailParams::default())),
+        [id, size, mode] => Some((id.to_owned(), ThumbnailParams::from_str(size, mode)?)),
         _ => None,
-    };
-    debug!("thumbnail_file_name: {:?}", thumbnail_file_name);
-
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
-        .context("Could not get app data directory")
-        .unwrap();
-
-    if let Some(thumbnail_file_name) = thumbnail_file_name {
-        let thumbnail_path = app_data_dir.join("thumbnails").join(thumbnail_file_name);
-        debug!("thumbnail_path: {:?}", thumbnail_path);
-        let file = fs::read(thumbnail_path).unwrap();
-        Response::builder().status(200).body(file).unwrap()
-    } else {
-        Response::builder()
-            .status(400)
-            .body("Invalid image URL".into())
-            .unwrap()
     }
+    .ok_or(anyhow!(
+        "Could not parse request path {} to thumbnail file name",
+        path
+    ))?;
+    let thumbnail_file_name = PathBuf::from(&id).join(thumbnail_params.to_string());
+
+    debug!("thumbnail_file_name: {:?}", thumbnail_file_name);
+    let thumbnails_dir = app_data_dir.join("thumbnails");
+    let thumbnail_path = thumbnails_dir.join(thumbnail_file_name);
+    debug!("thumbnail_path: {:?}", thumbnail_path);
+    if !(fs::exists(&thumbnail_path).context(format!(
+        "Failed when checking if file exists {:?}",
+        &thumbnail_path
+    ))?) {
+        debug!(
+            "Thumbnail path {:?} does not exist, generating new thumbnail",
+            &thumbnail_path
+        );
+        let uuid = Uuid::parse_str(&id).context(format!("Could not parse uuid {}", id))?;
+        let file_descriptor = database.get_file_by_id(&uuid)?;
+        generate_thumbnail(&file_descriptor, &thumbnails_dir, &thumbnail_params);
+    };
+    let file = fs::read(&thumbnail_path).context(format!(
+        "Failed when reading thumbnail {:?}",
+        &thumbnail_path
+    ))?;
+    Ok(file)
 }

@@ -71,8 +71,6 @@ pub(crate) async fn save_images_dirs(
         )
         .context("Could not emit files-indexed")?;
 
-    generate_thumbnails(&descriptors, &app_handle)?;
-
     Ok(())
 }
 

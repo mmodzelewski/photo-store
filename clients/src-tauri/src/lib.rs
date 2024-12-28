@@ -8,14 +8,16 @@ mod image;
 mod state;
 mod sync;
 
-use crate::{auth::AuthCtx, image::image_protocol::image_protocol_handler};
+use crate::auth::AuthCtx;
+use crate::image::image_protocol::image_protocol_handler;
 use anyhow::Context;
 use database::Database;
 use error::{Error, Result};
 use http::HttpClient;
-use log::debug;
+use log::{debug, error};
 use state::SyncedAppState;
 use std::fs;
+use tauri::http::Response;
 use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -32,9 +34,34 @@ pub fn run() {
             auth::handlers::get_private_key,
             state::get_status,
         ])
-        .register_uri_scheme_protocol("image", |ctx, request| {
-            let app = ctx.app_handle();
-            image_protocol_handler(app, request)
+        .register_asynchronous_uri_scheme_protocol("image", |ctx, request, responder| {
+            let app = ctx.app_handle().to_owned();
+            let app_data_dir = app
+                .path()
+                .app_data_dir()
+                .context("Could not get app data directory")
+                .unwrap();
+            let url = request.uri();
+            let path = url.path()[1..].to_owned();
+
+            std::thread::spawn(move || {
+                let database = app.state::<Database>();
+                let file = image_protocol_handler(&database, &app_data_dir, &path);
+                match file {
+                    Ok(file) => {
+                        responder.respond(Response::builder().status(200).body(file).unwrap())
+                    }
+                    Err(err) => {
+                        error!("Could not get thumbnail, error {}", err);
+                        responder.respond(
+                            Response::builder()
+                                .status(400)
+                                .body(err.to_string().as_bytes().to_vec())
+                                .unwrap(),
+                        );
+                    }
+                };
+            });
         })
         .setup(|app| {
             env_logger::Builder::new()

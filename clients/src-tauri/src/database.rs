@@ -217,8 +217,28 @@ impl Database {
         Ok(descriptors)
     }
 
+    pub fn get_file_by_id(&self, uuid: &Uuid) -> Result<FileDescriptor> {
+        let conn = self.get_connection();
+        let mut statement = conn
+            .prepare("SELECT path, uuid, date, sha256, key, status FROM file WHERE uuid = ?1")
+            .context("Could not prepare statement for getting file by id")?;
+        let file = statement
+            .query_row([uuid], |row| {
+                Ok(FileDescriptor {
+                    path: row.get(0)?,
+                    uuid: row.get(1)?,
+                    date: row.get(2)?,
+                    sha256: row.get(3)?,
+                    key: row.get(4)?,
+                    status: row.get(5)?,
+                })
+            })
+            .context("Could not map row to file descriptor")?;
+        Ok(file)
+    }
+
     fn get_connection(&self) -> MutexGuard<'_, Connection> {
-        return self.connection.lock().unwrap();
+        self.connection.lock().unwrap()
     }
 
     pub(crate) fn save_user(&self, user: &User) -> Result<()> {

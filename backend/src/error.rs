@@ -2,7 +2,6 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use uuid;
 
 pub type Result<T> = std::result::Result<T, Error>;
 

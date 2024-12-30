@@ -162,24 +162,23 @@ fn get_file_date(file: &DirEntry) -> Result<OffsetDateTime> {
     Ok(created.into())
 }
 
-fn get_date_from_exif(path: &String) -> Result<OffsetDateTime> {
-    let file =
-        std::fs::File::open(path).with_context(|| format!("Couldn't open file {:?}", path))?;
+fn get_date_from_exif(path: &str) -> Result<OffsetDateTime> {
+    let file = fs::File::open(path).context(format!("Couldn't open file {:?}", path))?;
     let mut buf_reader = std::io::BufReader::new(&file);
     let exif_reader = exif::Reader::new();
     let exif = exif_reader
         .read_from_container(&mut buf_reader)
-        .with_context(|| format!("Couldn't read exif {:?}", path))?;
+        .context(format!("Couldn't read exif {:?}", path))?;
 
     let date = exif
         .get_field(exif::Tag::DateTimeOriginal, exif::In::PRIMARY)
-        .with_context(|| format!("Missing DateTimeOriginal for file {:?}", path))?;
+        .context(format!("Missing DateTimeOriginal for file {:?}", path))?;
     let date = date.display_value().to_string();
 
-    let offset = exif
-        .get_field(exif::Tag::OffsetTimeOriginal, exif::In::PRIMARY)
-        .with_context(|| format!("Missing OffsetTimeOriginal for file {:?}", path))?;
-    let offset = offset.display_value().to_string();
+    let offset = exif.get_field(exif::Tag::OffsetTimeOriginal, exif::In::PRIMARY);
+    let offset = offset
+        .map(|f| f.display_value().to_string())
+        .unwrap_or("\"+00:00\"".to_owned());
 
     let datetime = format!("{date} {offset}");
     let datetime =

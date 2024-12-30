@@ -92,7 +92,7 @@ pub fn run() {
 
             let api_url = option_env!("PHOTO_STORE_API_URL").unwrap_or("http://localhost:3000");
             debug!("API URL: {}", api_url);
-            app.manage(HttpClient::new(&api_url));
+            app.manage(HttpClient::new(api_url));
 
             Ok(())
         })

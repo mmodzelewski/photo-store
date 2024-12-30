@@ -238,7 +238,7 @@ pub(super) async fn download_file(
     let file = repo
         .find(&file_id)
         .await?
-        .ok_or_else(|| Error::FileNotFound(file_id))?;
+        .ok_or(Error::FileNotFound(file_id))?;
 
     if file.owner_id != ctx.user_id() {
         return Err(Error::Unauthorized);
@@ -286,7 +286,7 @@ pub(super) async fn download_file(
         .body
         .collect()
         .await
-        .map_err(|e| Error::FileDownloadError("Could not fetch".to_owned()))?
+        .map_err(|_| Error::FileDownloadError("Could not fetch".to_owned()))?
         .into_bytes();
     Ok((headers, file_bytes))
 }

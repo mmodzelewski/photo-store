@@ -23,8 +23,8 @@ across multiple platforms.
 - [ ] Watch file changes: add, remove, move
 - [ ] Generate multiple thumbnails sizes
 - [ ] Test performance for storing thumbnails in sqlite
-- [ ] Change process for generating thumbnails - maybe on demand?
-- [ ] Add custom assets protocol for getting images by id and resolution - 
+- [x] Change process for generating thumbnails - maybe on demand?
+- [x] Add custom assets protocol for getting images by id and resolution - 
       when Tauri v2 is available and async protocol implementation is possible
 - [x] Store auth token in keyring      
 - [x] Local images indexing
@@ -32,7 +32,7 @@ across multiple platforms.
 - [x] Pagination for images loading
 - [x] Change command for indexing images to async
 - [x] Display images in chronological order
-- [x] Add prev/next navigation when previwing an image
+- [x] Add prev/next navigation when previewing an image
 - [ ] ~~Add [Persisted Scope plugin](https://github.com/tauri-apps/plugins-workspace/tree/v1/plugins/persisted-scope)
       once the [PR](https://github.com/tauri-apps/plugins-workspace/pull/32) is merged~~ -
       no longer needed, it's covered by saving and restoring settings from db

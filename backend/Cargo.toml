@@ -10,7 +10,7 @@ argon2 = "0.5.3"
 async-trait = "0.1.77"
 aws-config = "1.1.7"
 aws-sdk-s3 = "1.17.0"
-axum = { version = "0.7.4", features = ["multipart"] }
+axum = { version = "0.8.1", features = ["multipart"] }
 base64ct = { version = "1.6.0", features = ["std"] }
 config = "0.13.4"
 crypto = { version = "0.1.0", path = "../crates/crypto" }

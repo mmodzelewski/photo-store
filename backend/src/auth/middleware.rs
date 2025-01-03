@@ -59,7 +59,6 @@ pub(crate) async fn ctx_resolver(
     Ok(next.run(request).await)
 }
 
-#[async_trait::async_trait]
 impl<S: Send + Sync> FromRequestParts<S> for Ctx {
     type Rejection = Error;
 

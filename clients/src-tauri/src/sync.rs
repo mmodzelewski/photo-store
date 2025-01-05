@@ -12,6 +12,7 @@ use reqwest::multipart::Part;
 use std::collections::HashSet;
 use std::fs;
 use tauri::{AppHandle, Emitter, State};
+use time::OffsetDateTime;
 
 #[tauri::command]
 pub(crate) async fn sync_images(
@@ -23,8 +24,7 @@ pub(crate) async fn sync_images(
     debug!("sync_images called");
 
     let state = app_state.read();
-    let user = state.user.context("User is not logged in")?;
-    let auth_ctx = state.auth_ctx.context("User is not authenticated")?;
+    let (user, auth_ctx) = state.get_authenticated_user()?;
 
     download_new_files(&app_handle, &database, &http_client, &auth_ctx).await?;
     upload_new_files(&database, &http_client, user, &auth_ctx).await?;
@@ -37,10 +37,14 @@ async fn download_new_files(
     http_client: &State<'_, HttpClient>,
     auth_ctx: &AuthCtx,
 ) -> Result<()> {
+    let now = OffsetDateTime::now_utc();
+    let sync_time = database.get_last_sync_time()?;
+
     let client = http_client.client();
     let response = client
         .get(format!("{}/files/metadata", http_client.url()))
         .header("Authorization", auth_ctx.get_auth_token())
+        .query(&[("from", &sync_time.map(|t| t.unix_timestamp()))])
         .send()
         .await
         .context("Failed to fetch files from backend")?;
@@ -49,6 +53,7 @@ async fn download_new_files(
         .json()
         .await
         .context("Failed to parse remote files response")?;
+    debug!("Fetched metadata for {} files", remote_files.len());
 
     let all_local_files = database.get_indexed_images()?;
     let local_file_uuids_set = all_local_files
@@ -114,6 +119,7 @@ async fn download_new_files(
             .emit("index-updated", ())
             .context("Couldn't emit index-updated")?;
     }
+    database.update_last_sync_time(&now)?;
     Ok(())
 }
 

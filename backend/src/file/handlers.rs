@@ -1,11 +1,13 @@
 use aws_config::BehaviorVersion;
 use aws_sdk_s3::primitives::ByteStream;
 use axum::body::Bytes;
+use axum::extract::Query;
 use axum::http::HeaderMap;
 use axum::{
     extract::{multipart::Field, Multipart, Path, State},
     Json,
 };
+use serde::{de, Deserialize, Deserializer};
 use time::OffsetDateTime;
 use tracing::{debug, error, warn};
 use uuid::Uuid;
@@ -81,14 +83,42 @@ async fn upload_files_metadata_internal(
     Ok(())
 }
 
+#[derive(Debug, Deserialize)]
+pub struct DownloadParams {
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    from: Option<OffsetDateTime>,
+}
+
+fn empty_string_as_none<'de, D: Deserializer<'de>>(
+    de: D,
+) -> std::result::Result<Option<OffsetDateTime>, D::Error> {
+    let opt = Option::<String>::deserialize(de)?;
+    match opt.as_deref() {
+        None | Some("") => Ok(None),
+        Some(value) => {
+            let timestamp = value.parse::<i64>().map_err(|err| {
+                de::Error::invalid_value(de::Unexpected::Str(value), &"a unix timestamp in seconds")
+            })?;
+            OffsetDateTime::from_unix_timestamp(timestamp)
+                .map(Some)
+                .map_err(|err| de::Error::invalid_value(de::Unexpected::Signed(timestamp), &err))
+        }
+    }
+}
+
 pub(super) async fn get_files_metadata(
     State(state): State<AppState>,
+    Query(params): Query<DownloadParams>,
     ctx: Ctx,
 ) -> Result<Json<Vec<FileMetadata>>> {
-    debug!("Getting files metadata for user {}.", ctx.user_id());
+    debug!(
+        "Getting files metadata for user {}. Params {:?}",
+        ctx.user_id(),
+        params
+    );
 
     let repo = DbFileRepository { db: state.db };
-    let files = repo.find_by_user_id(&ctx.user_id()).await?;
+    let files = repo.find_synced_files(&ctx.user_id(), params.from).await?;
 
     let metadata: Vec<FileMetadata> = files
         .into_iter()

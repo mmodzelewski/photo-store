@@ -7,7 +7,7 @@ use anyhow::Context;
 use log::debug;
 use rusqlite::{
     types::{FromSql, FromSqlError},
-    Connection, ToSql,
+    Connection, OptionalExtension, ToSql,
 };
 use rusqlite_migration::{Migrations, M};
 use std::{
@@ -16,6 +16,7 @@ use std::{
     str::FromStr,
     sync::{Mutex, MutexGuard},
 };
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 pub struct Database {
@@ -24,7 +25,7 @@ pub struct Database {
 
 impl Database {
     pub fn init(path: PathBuf) -> Result<Database> {
-        debug!("Databae initialization");
+        debug!("Database initialization");
         let migrations = Migrations::new(vec![
             M::up(
                 "CREATE TABLE app_settings (
@@ -65,11 +66,10 @@ impl Database {
 
     pub fn get_user(&self) -> Result<Option<User>> {
         let conn = self.get_connection();
-
         let mut statement = conn
             .prepare("SELECT key, value FROM app_settings")
             .context("Could not prepare statement for getting settings")?;
-        let map = statement
+        let settings_map = statement
             .query_map([], |row| {
                 let key: String = row.get(0)?;
                 let value: String = row.get(1)?;
@@ -78,8 +78,8 @@ impl Database {
             .context("Could not get settings from DB")?
             .collect::<std::result::Result<HashMap<String, String>, _>>()
             .context("Could not map settings to result")?;
-        let user_id = map.get("user_id");
-        let user_name = map.get("user_name");
+        let user_id = settings_map.get("user_id");
+        let user_name = settings_map.get("user_name");
 
         let user = match (user_id, user_name) {
             (Some(id), Some(name)) => Some(User {
@@ -89,6 +89,21 @@ impl Database {
             _ => None,
         };
         Ok(user)
+    }
+
+    pub fn get_last_sync_time(&self) -> Result<Option<OffsetDateTime>> {
+        let conn = self.get_connection();
+        let mut statement = conn
+            .prepare("SELECT value FROM app_settings where key = ?1")
+            .context("Could not prepare statement for getting sync time")?;
+        let sync_time = statement
+            .query_row(["sync_time"], |row| {
+                let value: OffsetDateTime = row.get(0)?;
+                Ok(value)
+            })
+            .optional()
+            .context("Could not get sync time from DB")?;
+        Ok(sync_time)
     }
 
     pub fn save_directories(&self, dirs: &[&str]) -> Result<()> {
@@ -256,6 +271,25 @@ impl Database {
             statement
                 .execute(("user_name", user.name.clone()))
                 .context("Could not insert user name")?;
+        }
+
+        tx.commit().context("Could not commit DB transaction")?;
+
+        Ok(())
+    }
+
+    pub(crate) fn update_last_sync_time(&self, time: &OffsetDateTime) -> Result<()> {
+        let mut conn = self.get_connection();
+
+        let tx = conn
+            .transaction()
+            .context("Could not start a DB transaction")?;
+
+        {
+            let mut statement = tx.prepare("INSERT INTO app_settings (key, value) VALUES ('sync_time', ?1) ON CONFLICT(key) DO UPDATE SET value=?1").context("Could not prepare DB statement for saving sync time")?;
+            statement
+                .execute((time,))
+                .context("Could not save sync time")?;
         }
 
         tx.commit().context("Could not commit DB transaction")?;

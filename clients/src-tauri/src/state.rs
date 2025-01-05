@@ -1,11 +1,11 @@
-use std::sync::RwLock;
-
+use anyhow::{anyhow, Context};
 use log::debug;
+use std::sync::RwLock;
 use uuid::Uuid;
 
 use crate::auth::AuthCtx;
 use crate::database::Database;
-use crate::error::Result;
+use crate::error::{Error, Result};
 
 #[tauri::command]
 pub(crate) fn get_status(
@@ -33,6 +33,14 @@ pub(crate) struct User {
 pub(crate) struct AppState {
     pub user: Option<User>,
     pub auth_ctx: Option<AuthCtx>,
+}
+
+impl AppState {
+    pub fn get_authenticated_user(self) -> Result<(User, AuthCtx)> {
+        let user = self.user.context("User is not logged in")?;
+        let auth_ctx = self.auth_ctx.context("User is not authenticated")?;
+        Ok((user, auth_ctx))
+    }
 }
 
 pub struct SyncedAppState(RwLock<AppState>);

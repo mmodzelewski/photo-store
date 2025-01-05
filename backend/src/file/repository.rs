@@ -1,3 +1,4 @@
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::database::DbPool;
@@ -8,7 +9,11 @@ use super::{File, FileState};
 pub(super) trait FileRepository {
     async fn exists(&self, uuid: &Uuid) -> Result<bool>;
     async fn find(&self, uuid: &Uuid) -> Result<Option<File>>;
-    async fn find_by_user_id(&self, user_id: &Uuid) -> Result<Vec<File>>;
+    async fn find_synced_files(
+        &self,
+        user_id: &Uuid,
+        from: Option<OffsetDateTime>,
+    ) -> Result<Vec<File>>;
     async fn save(&mut self, file: &File) -> Result<()>;
     async fn update_state(&self, file_id: &Uuid, state: FileState) -> Result<()>;
 }
@@ -47,8 +52,11 @@ impl FileRepository for DbFileRepository {
         Ok(file)
     }
 
-    // todo: get files that finished uploading
-    async fn find_by_user_id(&self, user_id: &Uuid) -> Result<Vec<File>> {
+    async fn find_synced_files(
+        &self,
+        user_id: &Uuid,
+        from: Option<OffsetDateTime>,
+    ) -> Result<Vec<File>> {
         let files = sqlx::query_as!(
             File,
             r#"SELECT
@@ -56,12 +64,18 @@ impl FileRepository for DbFileRepository {
             f.created_at, added_at, sha256,
             owner_id, uploader_id, enc_key
             FROM file f
-            WHERE owner_id = $1"#,
-            user_id
+            WHERE owner_id = $1
+            AND state = $2
+            AND ($3::timestamptz IS NULL OR added_at >= $3)"#,
+            user_id,
+            FileState::Synced as _,
+            from,
         )
         .fetch_all(&self.db)
         .await
-        .map_err(|e| crate::error::Error::DbError(format!("Could not get files for user {}", e)))?;
+        .map_err(|e| {
+            crate::error::Error::DbError(format!("Could not get synced files for user {}", e))
+        })?;
 
         Ok(files)
     }
@@ -129,11 +143,17 @@ pub mod tests {
             todo!()
         }
 
-        async fn find_by_user_id(&self, user_id: &Uuid) -> Result<Vec<File>> {
+        async fn find_synced_files(
+            &self,
+            user_id: &Uuid,
+            from: Option<OffsetDateTime>,
+        ) -> Result<Vec<File>> {
             Ok(self
                 .files
                 .iter()
                 .filter(|f| f.owner_id == *user_id)
+                .filter(|f| matches!(f.state, FileState::Synced))
+                .filter(|f| from.is_none() || f.added_at >= from.unwrap())
                 .cloned()
                 .collect())
         }

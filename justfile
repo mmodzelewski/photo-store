@@ -7,6 +7,9 @@ run-desktop-release:
 run-backend:
     cargo run -p backend
 
+reset-db:
+    cd backend && sqlx database reset --source db/migrations
+
 run-web:
     cd web && pnpm dev
 

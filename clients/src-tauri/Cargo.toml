@@ -27,9 +27,9 @@ image = "0.24.9"
 kamadak-exif = "0.5.5"
 keyring = "2.3.3"
 log = "0.4.21"
-reqwest = { version = "0.11.24", features = ["multipart", "json"] }
+reqwest = { workspace = true, features = ["multipart"] }
 rsa = { version = "0.9.6", features = ["sha2"] }
-rusqlite = { version = "0.30.0", features = ["bundled", "uuid", "time"] }
+rusqlite = { version = "0.32.1", features = ["bundled", "uuid", "time"] }
 rusqlite_migration = "1.1.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

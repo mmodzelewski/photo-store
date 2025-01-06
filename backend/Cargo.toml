@@ -7,7 +7,6 @@ edition = "2021"
 [dependencies]
 aes-gcm = "0.10.3"
 argon2 = "0.5.3"
-async-trait = "0.1.77"
 aws-config = "1.1.7"
 aws-sdk-s3 = "1.17.0"
 axum = { version = "0.8.1", features = ["multipart"] }
@@ -18,9 +17,9 @@ dtos = { version = "0.1.0", path = "../crates/dtos" }
 http = "1.1.0"
 jsonwebtoken = "9.3.0"
 oauth2 = "4.4.2"
-reqwest = { version = "0.12.4", features = ["json", "blocking"] }
+reqwest = { workspace = true, features = ["blocking"] }
 serde = { version = "1.0.197", features = ["derive"] }
-sqlx = { version = "0.7.3", features = ["runtime-tokio", "tls-native-tls", "postgres", "uuid", "time", "migrate"] }
+sqlx = { version = "0.8.3", features = ["runtime-tokio", "tls-native-tls", "postgres", "uuid", "time", "migrate"]}
 thiserror = "1.0.57"
 time = { version = "0.3.36", features = ["parsing", "serde"] }
 tokio = { version = "1.36.0", features = ["full"] }

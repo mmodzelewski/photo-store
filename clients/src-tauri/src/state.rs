@@ -1,11 +1,11 @@
-use anyhow::{anyhow, Context};
+use anyhow::Context;
 use log::debug;
 use std::sync::RwLock;
 use uuid::Uuid;
 
 use crate::auth::AuthCtx;
 use crate::database::Database;
-use crate::error::{Error, Result};
+use crate::error::Result;
 
 #[tauri::command]
 pub(crate) fn get_status(

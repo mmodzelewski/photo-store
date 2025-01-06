@@ -2,7 +2,7 @@ use anyhow::Context;
 use dtos::auth::{PrivateKeyResponse, SaveRsaKeysRequest};
 use log::debug;
 use tauri::{AppHandle, Emitter};
-use tauri_plugin_shell::ShellExt;
+use tauri_plugin_opener::OpenerExt;
 use tiny_http::{Header, Server};
 use url::Url;
 use uuid::Uuid;
@@ -25,13 +25,13 @@ pub(crate) async fn authenticate(
     let redirect_uri = format!("http://127.0.0.1:{}", ip.port());
 
     app_handle
-        .shell()
-        .open(
+        .opener()
+        .open_url(
             format!(
                 "http://localhost:5173/auth/desktop?redirect_uri={}",
                 redirect_uri
             ),
-            None,
+            None::<&str>,
         )
         .unwrap();
 

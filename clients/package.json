@@ -10,7 +10,7 @@
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "format": "prettier --write \"src/**/*.{js,ts,svelte,css}\"",
     "tauri": "tauri",
-    "prepare": "cd .. && husky install desktop/.husky"
+    "prepare": "cd .. && husky install clients/.husky"
   },
   "dependencies": {
     "@tauri-apps/api": "2.2.0",

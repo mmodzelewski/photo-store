@@ -1,4 +1,5 @@
 .toggl
 .idea/
 .envrc
+.env
 /target/

@@ -5,12 +5,13 @@ export DATABASE_URL="postgres://postgres:postgres@localhost:5432/photo_store_tes
 export NDK_HOME=$ANDROID_HOME/ndk/26.2.11394342/
 
 # Google OAuth
-export GOOGLE_CLIENT_ID=
-export GOOGLE_CLIENT_SECRET=
+export GOOGLE_CLIENT_ID=""
+export GOOGLE_CLIENT_SECRET=""
 
-export RUST_LOG="backend=debug"
+export RUST_LOG="info,backend=debug,photo_store_lib=debug"
+export RUST_BACKTRACE=1
 
 # app variables
 export APP_DATABASE_URL="postgres://postgres:postgres@localhost:5432/photo_store_test"
-export APP_STORAGE_URL=
-export APP_STORAGE_BUCKET_NAME=
+export APP_STORAGE_URL=""
+export APP_STORAGE_BUCKET_NAME=""

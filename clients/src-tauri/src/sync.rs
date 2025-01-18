@@ -2,16 +2,19 @@ use crate::auth::AuthCtx;
 use crate::error::Result;
 use crate::files::SyncStatus::{Done, InProgress};
 use crate::files::{FileDescriptor, FileDescriptorWithDecodedKey, SyncStatus};
+use crate::image::{generate_thumbnail, generate_thumbnails, ThumbnailParams};
 use crate::state::{SyncedAppState, User};
 use crate::{database::Database, http::HttpClient};
 use anyhow::{anyhow, Context};
 use crypto::{decode_encryption_key, decrypt_data, encrypt_data};
 use dtos::file::{FileMetadata, FilesUploadRequest};
 use log::{debug, error, warn};
+use reqwest::header::{HeaderMap, HOST};
 use reqwest::multipart::Part;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs;
-use tauri::{AppHandle, Emitter, State};
+use std::path::PathBuf;
+use tauri::{AppHandle, Emitter, Manager, State};
 use time::OffsetDateTime;
 
 #[tauri::command]
@@ -27,7 +30,7 @@ pub(crate) async fn sync_images(
     let (user, auth_ctx) = state.get_authenticated_user()?;
 
     download_new_files(&app_handle, &database, &http_client, &auth_ctx).await?;
-    upload_new_files(&database, &http_client, user, &auth_ctx).await?;
+    upload_new_files(&app_handle, &database, &http_client, user, &auth_ctx).await?;
     Ok(())
 }
 
@@ -124,6 +127,7 @@ async fn download_new_files(
 }
 
 async fn upload_new_files(
+    app_handle: &AppHandle,
     database: &State<'_, Database>,
     http_client: &State<'_, HttpClient>,
     user: User,
@@ -168,13 +172,35 @@ async fn upload_new_files(
         let (encrypted_data, encrypted_data_hash) = encrypt_data(descriptor, key, file.into())
             .with_context(|| format!("Could not encrypt file {:?}", descriptor.path))?;
 
-        let form = reqwest::multipart::Form::new().part(
-            "file",
+        let thumbnail_paths = prepare_thumbnails(app_handle, descriptor)?;
+
+        let mut headers = HeaderMap::new();
+        headers.insert("sha256_checksum", encrypted_data_hash.parse().unwrap());
+        let mut form = reqwest::multipart::Form::new().part(
+            "original",
             Part::bytes(encrypted_data)
-                .file_name(descriptor.path.to_owned())
+                .headers(headers)
                 .mime_str("image/jpeg")
                 .unwrap(),
         );
+
+        for (thumbnail_name, thumbnail_path) in thumbnail_paths.into_iter() {
+            let thumbnail_data = fs::read(&thumbnail_path)
+                .context(format!("Couldn't read thumbnail {:?}", &thumbnail_path))?;
+            let (encrypted_thumbnail, encrypted_thumbnail_hash) =
+                encrypt_data(descriptor, key, thumbnail_data.into())
+                    .context(format!("Failed to encrypt thumbnail {:?}", &thumbnail_path))?;
+
+            let mut headers = HeaderMap::new();
+            headers.insert("sha256_checksum", encrypted_thumbnail_hash.parse().unwrap());
+            form = form.part(
+                thumbnail_name.clone(),
+                Part::bytes(encrypted_thumbnail)
+                    .headers(headers)
+                    .mime_str("image/jpeg")
+                    .unwrap(),
+            );
+        }
 
         debug!("Sending file: {:?}", &descriptor.path);
         let upload_response = client
@@ -184,7 +210,6 @@ async fn upload_new_files(
                 descriptor.uuid
             ))
             .header("Authorization", auth_ctx.get_auth_token())
-            .header("sha256_checksum", encrypted_data_hash)
             .multipart(form)
             .send()
             .await;
@@ -208,6 +233,46 @@ async fn upload_new_files(
         }
     }
     Ok(())
+}
+
+fn prepare_thumbnails(
+    app_handle: &AppHandle,
+    descriptor: &FileDescriptor,
+) -> Result<HashMap<String, PathBuf>> {
+    let app_data_dir = app_handle
+        .path()
+        .app_data_dir()
+        .context("Could not get app data directory")?;
+    let thumbnails_dir = app_data_dir.join("thumbnails");
+
+    let small_params = ThumbnailParams::small_cover();
+    let small = prepare_thumbnail(descriptor, &thumbnails_dir, &small_params)?;
+
+    let big_params = ThumbnailParams::big_contain();
+    let big = prepare_thumbnail(descriptor, &thumbnails_dir, &big_params)?;
+
+    let thumbnails = HashMap::from([
+        (format!("thumbnail-{}", small_params), small),
+        (format!("thumbnail-{}", big_params), big),
+    ]);
+    Ok(thumbnails)
+}
+
+fn prepare_thumbnail(
+    descriptor: &FileDescriptor,
+    thumbnails_dir: &PathBuf,
+    params: &ThumbnailParams,
+) -> Result<PathBuf> {
+    let thumbnail = thumbnails_dir
+        .join(descriptor.uuid.to_string())
+        .join(params.to_string());
+    if !(fs::exists(&thumbnail).context(format!(
+        "Failed when checking if file exists {:?}",
+        &thumbnail
+    ))?) {
+        generate_thumbnail(descriptor, thumbnails_dir, params);
+    }
+    Ok(thumbnail)
 }
 
 fn get_files_to_upload(

@@ -52,6 +52,14 @@ impl ThumbnailParams {
             mode: ThumbnailMode::Contain,
         }
     }
+
+    pub fn small_cover() -> Self {
+        Self::cover(512)
+    }
+
+    pub fn big_contain() -> Self {
+        Self::contain(1920)
+    }
 }
 
 impl Default for ThumbnailParams {

@@ -2,11 +2,12 @@ use aws_config::BehaviorVersion;
 use aws_sdk_s3::primitives::ByteStream;
 use axum::body::Bytes;
 use axum::extract::Query;
-use axum::http::HeaderMap;
+use axum::http::{HeaderMap, HeaderValue};
 use axum::{
     extract::{multipart::Field, Multipart, Path, State},
     Json,
 };
+use http::header;
 use serde::{de, Deserialize, Deserializer};
 use time::OffsetDateTime;
 use tracing::{debug, error, warn};
@@ -162,22 +163,14 @@ pub(super) async fn upload_file(
             file.uploader_id
         )));
     }
-    let sha256 = headers
-        .get("sha256_checksum")
-        .ok_or_else(|| Error::FileUploadError("Missing sha256 checksum header".to_string()))?;
-    if sha256.is_empty() {
-        return Err(Error::FileUploadError(
-            "Empty sha256 checksum header".to_string(),
-        ));
-    }
-    let sha256 = sha256.to_str().map_err(|e| {
-        Error::FileUploadError(format!("Could not parse sha256 checksum header {}", e))
-    })?;
 
     match file.state {
         FileState::New => {
             repo.update_state(&file_id, FileState::SyncInProgress)
                 .await?;
+
+            let mut original_uploaded = false;
+            let mut thumbnails_uploaded = 0;
 
             while let Some(field) = multipart.next_field().await.map_err(|e| {
                 Error::FileUploadError(format!(
@@ -186,11 +179,50 @@ pub(super) async fn upload_file(
                 ))
             })? {
                 debug!("Got field: {:?}", &field);
-                if Some("file") == field.name() {
-                    upload(&file, field, sha256, &state.config.storage).await?;
-                    repo.update_state(&file_id, FileState::Synced).await?;
+                let headers = field.headers().clone();
+                let sha256 = headers.get("sha256_checksum").ok_or_else(|| {
+                    Error::FileUploadError("Missing sha256 checksum header".to_string())
+                })?;
+                if sha256.is_empty() {
+                    return Err(Error::FileUploadError(
+                        "Empty sha256 checksum header".to_string(),
+                    ));
+                }
+                let sha256 = sha256.to_str().map_err(|e| {
+                    Error::FileUploadError(format!("Could not parse sha256 checksum header {}", e))
+                })?;
+
+                match field.name() {
+                    Some(ORIGINAL) => {
+                        upload(&file, field, ORIGINAL, sha256, &state.config.storage).await?;
+                        original_uploaded = true;
+                    }
+                    Some(name) if name.starts_with("thumbnail-") => {
+                        let name = name.to_owned();
+                        let name = name.strip_prefix("thumbnail-").unwrap();
+                        upload(&file, field, name, sha256, &state.config.storage).await?;
+                        thumbnails_uploaded += 1;
+                    }
+                    _ => {
+                        warn!("Ignoring unknown field: {:?}", field.name());
+                    }
                 }
             }
+
+            if !original_uploaded {
+                return Err(Error::FileUploadError(
+                    "Original file was not uploaded".to_string(),
+                ));
+            }
+
+            if thumbnails_uploaded != 2 {
+                warn!(
+                    "Expected 2 thumbnails, but got {} for file {}",
+                    thumbnails_uploaded, file_id
+                );
+            }
+
+            repo.update_state(&file_id, FileState::Synced).await?;
             Ok(())
         }
         _ => {
@@ -206,8 +238,16 @@ pub(super) async fn upload_file(
     }
 }
 
-async fn upload(file: &File, field: Field<'_>, sha256: &str, config: &StorageConfig) -> Result<()> {
-    debug!("Uploading file {} data", file.uuid);
+const ORIGINAL: &str = "original";
+
+async fn upload(
+    file: &File,
+    field: Field<'_>,
+    field_name: &str,
+    sha256: &str,
+    config: &StorageConfig,
+) -> Result<()> {
+    debug!("Uploading file {}/{}", file.uuid, field_name);
 
     let aws_config = aws_config::defaults(BehaviorVersion::latest())
         .region("auto")
@@ -232,7 +272,7 @@ async fn upload(file: &File, field: Field<'_>, sha256: &str, config: &StorageCon
 
     crypto::verify_data_hash(file.uuid, sha256, &data)?;
 
-    let file_key = format!("files/{}/{}/original", file.owner_id, file.uuid);
+    let file_key = format!("files/{}/{}/{}", file.owner_id, file.uuid, field_name);
     let result = client
         .put_object()
         .bucket(&config.bucket_name)
@@ -243,24 +283,36 @@ async fn upload(file: &File, field: Field<'_>, sha256: &str, config: &StorageCon
         .send()
         .await
         .map_err(|e| {
-            // improve error mapping
-            let message = format!("Could not upload file {}, error: {}", file.uuid, e);
+            let message = format!(
+                "Could not upload file {}/{}, error: {}",
+                file.uuid, field_name, e
+            );
             error!(message);
             Error::FileUploadError(message)
         })?;
 
-    debug!("File {} upload result: {:?}", file.uuid, result);
+    debug!(
+        "File {}/{} upload result: {:?}",
+        file.uuid, field_name, result
+    );
     Ok(())
+}
+
+#[derive(Debug, Deserialize)]
+pub struct FileDownloadParams {
+    variant: Option<String>,
 }
 
 pub(super) async fn download_file(
     State(state): State<AppState>,
     ctx: Ctx,
     Path(file_id): Path<Uuid>,
+    Query(params): Query<FileDownloadParams>,
 ) -> Result<(HeaderMap, Bytes)> {
     debug!(
-        "Downloading file: {:?}. Authenticated user {}",
+        "Downloading file: {:?} with variant {:?}. Authenticated user {}",
         file_id,
+        params.variant,
         ctx.user_id()
     );
     let repo = DbFileRepository { db: state.db };
@@ -282,43 +334,51 @@ pub(super) async fn download_file(
         .await;
     let client = aws_sdk_s3::Client::new(&aws_config);
 
-    let file_key = format!("files/{}/{}/original", file.owner_id, file.uuid);
-    debug!("Downloading file {} data", &file_key);
-    let get_object = client
+    let file_key = format!(
+        "files/{}/{}/{}",
+        file.owner_id,
+        file.uuid,
+        params.variant.unwrap_or(ORIGINAL.to_owned())
+    );
+
+    let get_object_output = client
         .get_object()
         .bucket(&storage_config.bucket_name)
         .key(&file_key)
         .send()
         .await
         .map_err(|e| {
-            let message = format!("Could not download file {}, error: {}", file_id, e);
-            error!(message);
-            Error::FileDownloadError(message)
+            error!("Could not get file {}, error: {}", file_id, e);
+            Error::FileDownloadError(format!("Could not get file {}", file_id))
         })?;
+
+    let content_type = get_object_output
+        .content_type()
+        .unwrap_or("application/octet-stream");
 
     let mut headers = HeaderMap::new();
     headers.insert(
-        http::header::CONTENT_TYPE,
-        get_object
-            .content_type()
-            .unwrap_or("application/octet-stream")
-            .parse()
-            .unwrap(),
-    );
-    headers.insert(
-        http::header::CONTENT_DISPOSITION,
-        format!("attachment; filename=\"{}\"", file.name)
-            .parse()
-            .unwrap(),
+        header::CONTENT_TYPE,
+        HeaderValue::from_str(content_type).map_err(|e| {
+            error!(
+                "Could not parse content type {}, error: {}",
+                content_type, e
+            );
+            Error::FileDownloadError("Could not set content type header".to_string())
+        })?,
     );
 
-    let file_bytes = get_object
+    let data = get_object_output
         .body
         .collect()
         .await
-        .map_err(|_| Error::FileDownloadError("Could not fetch".to_owned()))?
+        .map_err(|e| {
+            error!("Could not read file {} bytes, error: {}", file_id, e);
+            Error::FileDownloadError("Could not read file bytes".to_string())
+        })?
         .into_bytes();
-    Ok((headers, file_bytes))
+
+    Ok((headers, data))
 }
 
 #[cfg(test)]

@@ -45,9 +45,15 @@ pub fn run() {
             let url = request.uri();
             let path = url.path()[1..].to_owned();
 
-            std::thread::spawn(move || {
+            tauri::async_runtime::spawn(async move {
                 let database = app.state::<Database>();
-                let file = image_protocol_handler(&database, &app_data_dir, &path);
+                let http_client = app.state::<HttpClient>();
+                let app_state = app.state::<SyncedAppState>();
+                let state = app_state.read();
+                let (_, auth_ctx) = state.get_authenticated_user().unwrap();
+                let file =
+                    image_protocol_handler(&database, &http_client, auth_ctx, &app_data_dir, &path)
+                        .await;
                 match file {
                     Ok(file) => {
                         responder.respond(Response::builder().status(200).body(file).unwrap())

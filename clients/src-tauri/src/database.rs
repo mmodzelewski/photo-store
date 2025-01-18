@@ -1,6 +1,7 @@
+use crate::files::{File, Metadata};
 use crate::{
     error::Result,
-    files::{FileDescriptor, SyncStatus},
+    files::{FileDescriptor, FileStatus},
     state::User,
 };
 use anyhow::Context;
@@ -48,7 +49,8 @@ impl Database {
                     date TEXT NOT NULL,
                     sha256 TEXT NOT NULL,
                     key TEXT NOT NULL,
-                    status TEXT NOT NULL
+                    status TEXT NOT NULL,
+                    remote BOOLEAN NOT NULL
                 );",
             ),
         ]);
@@ -125,7 +127,7 @@ impl Database {
         Ok(())
     }
 
-    pub fn has_images_dirs(&self) -> Result<bool> {
+    pub fn has_files_dirs(&self) -> Result<bool> {
         let conn = self.get_connection();
 
         let dirs_count = conn
@@ -155,7 +157,7 @@ impl Database {
         Ok(dirs)
     }
 
-    pub fn index_files(&self, descriptors: &Vec<FileDescriptor>) -> Result<()> {
+    pub fn index_files(&self, descriptors: &Vec<FileDescriptor>, remote: bool) -> Result<()> {
         let mut conn = self.get_connection();
         let tx = conn
             .transaction()
@@ -163,7 +165,7 @@ impl Database {
 
         {
             let mut stmt = tx.prepare(
-                "INSERT INTO file (path, uuid, date, sha256, key, status) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                "INSERT INTO file (path, uuid, date, sha256, key, status, remote) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             ).context("Could not prepare statement for inserting descriptors")?;
             for desc in descriptors {
                 stmt.execute((
@@ -173,6 +175,7 @@ impl Database {
                     &desc.sha256,
                     &desc.key,
                     &desc.status,
+                    remote,
                 ))
                 .with_context(|| format!("Could not execute insert for descriptor {:?}", desc))?;
             }
@@ -182,7 +185,7 @@ impl Database {
         Ok(())
     }
 
-    pub fn find_files_by_sync_status(&self, status: SyncStatus) -> Result<Vec<FileDescriptor>> {
+    pub fn find_files_by_sync_status(&self, status: FileStatus) -> Result<Vec<FileDescriptor>> {
         let conn = self.get_connection();
         let mut statement = conn
             .prepare("SELECT path, uuid, date, sha256, key, status FROM file WHERE status = ?1 ORDER BY date DESC")
@@ -198,7 +201,7 @@ impl Database {
                     status: row.get(5)?,
                 })
             })
-            .context("Could not map indexed images to file descriptors")?;
+            .context("Could not map indexed files to file descriptors")?;
         let mut descriptors = Vec::new();
         for row in rows {
             descriptors.push(row.context("Failed mapping an item to file descriptor")?);
@@ -207,11 +210,22 @@ impl Database {
         Ok(descriptors)
     }
 
-    pub fn get_indexed_images(&self) -> Result<Vec<FileDescriptor>> {
+    pub fn file_exists(&self, uuid: &Uuid) -> Result<bool> {
+        let conn = self.get_connection();
+        let mut statement = conn
+            .prepare("SELECT COUNT(1) FROM file WHERE uuid = ?1")
+            .context("Could not prepare statement for checking file existence")?;
+        let count = statement
+            .query_row([uuid], |row| row.get::<usize, usize>(0))
+            .context("Could not map row when checking file existence")?;
+        Ok(count > 0)
+    }
+
+    pub fn get_indexed_files(&self) -> Result<Vec<FileDescriptor>> {
         let conn = self.get_connection();
         let mut statement = conn
             .prepare("SELECT path, uuid, date, sha256, key, status FROM file ORDER BY date DESC")
-            .context("Could not get indexed images from DB")?;
+            .context("Could not get indexed files from DB")?;
         let rows = statement
             .query_map([], |row| {
                 Ok(FileDescriptor {
@@ -223,7 +237,7 @@ impl Database {
                     status: row.get(5)?,
                 })
             })
-            .context("Could not map indexed images to file descriptors")?;
+            .context("Could not map indexed files to file descriptors")?;
         let mut descriptors = Vec::new();
         for row in rows {
             descriptors.push(row.context("Failed mapping an item to file descriptor")?);
@@ -232,23 +246,34 @@ impl Database {
         Ok(descriptors)
     }
 
-    pub fn get_file_by_id(&self, uuid: &Uuid) -> Result<FileDescriptor> {
+    pub fn get_file_by_id(&self, uuid: &Uuid) -> Result<File> {
         let conn = self.get_connection();
         let mut statement = conn
-            .prepare("SELECT path, uuid, date, sha256, key, status FROM file WHERE uuid = ?1")
+            .prepare(
+                "SELECT remote, path, uuid, date, sha256, key, status FROM file WHERE uuid = ?1",
+            )
             .context("Could not prepare statement for getting file by id")?;
         let file = statement
             .query_row([uuid], |row| {
-                Ok(FileDescriptor {
-                    path: row.get(0)?,
-                    uuid: row.get(1)?,
-                    date: row.get(2)?,
-                    sha256: row.get(3)?,
-                    key: row.get(4)?,
-                    status: row.get(5)?,
-                })
+                let remote: bool = row.get(0)?;
+                debug!("File remote: {:?}", remote);
+                let metadata = Metadata {
+                    uuid: row.get(2)?,
+                    date: row.get(3)?,
+                    sha256: row.get(4)?,
+                    key: row.get(5)?,
+                };
+                if remote {
+                    Ok(File::Remote { metadata })
+                } else {
+                    Ok(File::Local {
+                        path: row.get(1)?,
+                        status: row.get(6)?,
+                        metadata,
+                    })
+                }
             })
-            .context("Could not map row to file descriptor")?;
+            .context("Could not map row to file")?;
         Ok(file)
     }
 
@@ -297,7 +322,7 @@ impl Database {
         Ok(())
     }
 
-    pub fn update_file_status(&self, uuid: &Uuid, status: SyncStatus) -> Result<()> {
+    pub fn update_file_status(&self, uuid: &Uuid, status: FileStatus) -> Result<()> {
         let conn = self.get_connection();
         conn.execute(
             "UPDATE file SET status = ?1 WHERE uuid = ?2",
@@ -311,16 +336,16 @@ impl Database {
     }
 }
 
-impl ToSql for SyncStatus {
+impl ToSql for FileStatus {
     fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
         let val: &'static str = self.into();
         Ok(val.into())
     }
 }
 
-impl FromSql for SyncStatus {
+impl FromSql for FileStatus {
     fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
-        let sync_status = SyncStatus::from_str(value.as_str()?)
+        let sync_status = FileStatus::from_str(value.as_str()?)
             .map_err(|err| FromSqlError::Other(Box::new(err)))?;
         Ok(sync_status)
     }

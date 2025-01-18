@@ -16,7 +16,7 @@ use walkdir::{DirEntry, WalkDir};
 
 use crate::database::Database;
 use crate::error::Result;
-use crate::files::{FileDescriptor, SyncStatus};
+use crate::files::{FileDescriptor, FileStatus};
 use crate::state::SyncedAppState;
 
 const DATE_TIME_FORMAT: &[FormatItem<'static>] = format_description!(
@@ -132,11 +132,11 @@ fn index_files(
             date,
             sha256,
             key: encryption_key,
-            status: SyncStatus::New,
+            status: FileStatus::New,
         });
     }
     debug!("Saving to db");
-    database.index_files(&descriptors)?;
+    database.index_files(&descriptors, false)?;
 
     Ok(descriptors)
 }
@@ -214,7 +214,7 @@ pub(crate) struct Image {
 #[tauri::command]
 pub(crate) fn get_images(database: tauri::State<Database>) -> Result<Vec<Image>> {
     debug!("Getting indexed files");
-    let descriptors = database.get_indexed_images()?;
+    let descriptors = database.get_indexed_files()?;
     let images = descriptors
         .into_iter()
         .map(|desc| Image {
@@ -229,5 +229,5 @@ pub(crate) fn get_images(database: tauri::State<Database>) -> Result<Vec<Image>>
 #[tauri::command]
 pub(crate) fn has_images_dirs(database: tauri::State<Database>) -> Result<bool> {
     debug!("Checking images dirs");
-    database.has_images_dirs()
+    database.has_files_dirs()
 }

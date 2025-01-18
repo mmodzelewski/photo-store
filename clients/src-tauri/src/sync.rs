@@ -1,19 +1,19 @@
 use crate::auth::AuthCtx;
 use crate::error::Result;
-use crate::files::SyncStatus::{Done, InProgress};
-use crate::files::{FileDescriptor, FileDescriptorWithDecodedKey, SyncStatus};
-use crate::image::{generate_thumbnail, generate_thumbnails, ThumbnailParams};
+use crate::files::FileStatus::{Synced, UploadInProgress};
+use crate::files::{FileDescriptor, FileDescriptorWithDecodedKey, FileStatus};
+use crate::image::{generate_thumbnail, ThumbnailParams};
 use crate::state::{SyncedAppState, User};
 use crate::{database::Database, http::HttpClient};
 use anyhow::{anyhow, Context};
-use crypto::{decode_encryption_key, decrypt_data, encrypt_data};
+use crypto::{decode_encryption_key, encrypt_data};
 use dtos::file::{FileMetadata, FilesUploadRequest};
 use log::{debug, error, warn};
-use reqwest::header::{HeaderMap, HOST};
+use reqwest::header::HeaderMap;
 use reqwest::multipart::Part;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Emitter, Manager, State};
 use time::OffsetDateTime;
 
@@ -58,18 +58,12 @@ async fn download_new_files(
         .context("Failed to parse remote files response")?;
     debug!("Fetched metadata for {} files", remote_files.len());
 
-    let all_local_files = database.get_indexed_images()?;
-    let local_file_uuids_set = all_local_files
-        .iter()
-        .map(|desc| desc.uuid)
-        .collect::<HashSet<_>>();
-
     let dirs = database.get_directories()?;
     // todo: take proper directory for downloads
     let output_dir = dirs.first().ok_or(anyhow!("No directories selected"))?;
     let mut new_files_downloaded = false;
     for remote_file in remote_files.iter() {
-        if !local_file_uuids_set.contains(&remote_file.uuid) {
+        if !database.file_exists(&remote_file.uuid)? {
             debug!(
                 "Fetching new file: {} {:?}",
                 remote_file.uuid, remote_file.path
@@ -81,39 +75,11 @@ async fn download_new_files(
                 date: remote_file.date,
                 sha256: remote_file.sha256.to_owned(),
                 key: remote_file.key.to_owned(),
-                status: InProgress,
+                status: Synced,
             };
             let descriptors = vec![descriptor];
-            database.index_files(&descriptors)?;
+            database.index_files(&descriptors, true)?;
 
-            let data_response = client
-                .get(format!(
-                    "{}/files/{}/data",
-                    http_client.url(),
-                    remote_file.uuid
-                ))
-                .header("Authorization", auth_ctx.get_auth_token())
-                .send()
-                .await
-                .context("Failed to fetch file data")?;
-
-            let encrypted_data = data_response
-                .bytes()
-                .await
-                .context("Failed to read file data")?;
-
-            let encryption_key = decode_encryption_key(&remote_file.key, auth_ctx.decrypt())
-                .context(format!(
-                    "Failed to decrypt key for file {}",
-                    remote_file.uuid
-                ))?;
-            let decrypted_data =
-                decrypt_data(remote_file.uuid, &encryption_key, encrypted_data).unwrap();
-            fs::write(&path, decrypted_data).context(format!(
-                "Failed to save file data, uuid: {}, path {}",
-                remote_file.uuid, &path
-            ))?;
-            database.update_file_status(&remote_file.uuid, Done)?;
             new_files_downloaded = true;
         }
     }
@@ -134,7 +100,7 @@ async fn upload_new_files(
     auth_ctx: &AuthCtx,
 ) -> Result<()> {
     let client = http_client.client();
-    let files_to_upload = get_files_to_upload(&database, &auth_ctx)?;
+    let files_to_upload = get_files_to_upload(database, auth_ctx)?;
     if files_to_upload.is_empty() {
         debug!("No files to upload");
         return Ok(());
@@ -166,7 +132,7 @@ async fn upload_new_files(
         let descriptor = descriptor_with_key.descriptor();
         let key = descriptor_with_key.key();
 
-        database.update_file_status(&descriptor.uuid, SyncStatus::InProgress)?;
+        database.update_file_status(&descriptor.uuid, UploadInProgress)?;
 
         let file = fs::read(&descriptor.path).unwrap();
         let (encrypted_data, encrypted_data_hash) = encrypt_data(descriptor, key, file.into())
@@ -216,7 +182,7 @@ async fn upload_new_files(
 
         match upload_response {
             Ok(response) if response.status().is_success() => {
-                database.update_file_status(&descriptor.uuid, SyncStatus::Done)?;
+                database.update_file_status(&descriptor.uuid, Synced)?;
                 debug!("File uploaded successfully: {:?}", &descriptor.path);
             }
             Ok(response) => {
@@ -260,16 +226,16 @@ fn prepare_thumbnails(
 
 fn prepare_thumbnail(
     descriptor: &FileDescriptor,
-    thumbnails_dir: &PathBuf,
+    thumbnails_dir: &Path,
     params: &ThumbnailParams,
 ) -> Result<PathBuf> {
     let thumbnail = thumbnails_dir
         .join(descriptor.uuid.to_string())
         .join(params.to_string());
-    if !(fs::exists(&thumbnail).context(format!(
+    if !fs::exists(&thumbnail).context(format!(
         "Failed when checking if file exists {:?}",
         &thumbnail
-    ))?) {
+    ))? {
         generate_thumbnail(descriptor, thumbnails_dir, params);
     }
     Ok(thumbnail)
@@ -280,7 +246,7 @@ fn get_files_to_upload(
     auth_ctx: &AuthCtx,
 ) -> Result<Vec<FileDescriptorWithDecodedKey>> {
     Ok(database
-        .find_files_by_sync_status(SyncStatus::New)?
+        .find_files_by_sync_status(FileStatus::New)?
         .into_iter()
         .map(|desc| {
             let key = decode_encryption_key(&desc.key, auth_ctx.decrypt())

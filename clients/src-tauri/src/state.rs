@@ -17,7 +17,7 @@ pub(crate) fn get_status(
     if state.auth_ctx.is_none() {
         return Ok("before_login".to_owned());
     }
-    if database.has_images_dirs()? {
+    if database.has_files_dirs()? {
         Ok("directories_selected".to_owned())
     } else {
         Ok("after_login".to_owned())

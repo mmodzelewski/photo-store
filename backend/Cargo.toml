@@ -19,7 +19,7 @@ jsonwebtoken = "9.3.0"
 oauth2 = "4.4.2"
 reqwest = { workspace = true, features = ["blocking"] }
 serde = { version = "1.0.197", features = ["derive"] }
-sqlx = { version = "0.8.3", features = ["runtime-tokio", "tls-native-tls", "postgres", "uuid", "time", "migrate"]}
+sqlx = { version = "0.8.3", features = ["runtime-tokio", "tls-rustls", "postgres", "uuid", "time", "migrate"]}
 thiserror = "1.0.57"
 time = { version = "0.3.36", features = ["parsing", "serde"] }
 tokio = { version = "1.36.0", features = ["full"] }

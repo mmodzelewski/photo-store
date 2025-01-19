@@ -4,6 +4,9 @@ run-desktop:
 run-desktop-release:
     cd clients && cargo tauri dev --release
 
+run-android:
+    cd clients && cargo tauri android dev
+
 run-backend:
     cargo run -p backend
 

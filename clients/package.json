@@ -1,50 +1,33 @@
 {
   "name": "photo-store",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "version": "0.1.0",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "check": "svelte-check --tsconfig ./tsconfig.json",
-    "format": "prettier --write \"src/**/*.{js,ts,svelte,css}\"",
-    "tauri": "tauri",
-    "prepare": "cd .. && husky install clients/.husky"
+    "ng": "ng",
+    "start": "ng serve",
+    "build": "ng build",
+    "watch": "ng build --watch --configuration development",
+    "tauri": "tauri"
   },
+  "private": true,
   "dependencies": {
-    "@tauri-apps/api": "2.8.0",
-    "@tauri-apps/plugin-dialog": "2.4.0",
-    "@tauri-apps/plugin-opener": "2.5.0"
+    "@angular/common": "^20.1.4",
+    "@angular/compiler": "^20.1.4",
+    "@angular/core": "^20.1.4",
+    "@angular/forms": "^20.1.4",
+    "@angular/platform-browser": "^20.1.4",
+    "@angular/router": "^20.1.4",
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-dialog": "^2",
+    "@tauri-apps/plugin-opener": "^2",
+    "rxjs": "~7.8.2",
+    "tslib": "^2.8.1",
+    "zone.js": "~0.15.1"
   },
   "devDependencies": {
-    "@sveltejs/vite-plugin-svelte": "^4.0.0",
-    "@tauri-apps/cli": "2.8.4",
-    "@tsconfig/svelte": "^5.0.4",
-    "@types/node": "^20.10.6",
-    "autoprefixer": "^10.4.16",
-    "husky": "^8.0.3",
-    "lint-staged": "^15.2.0",
-    "postcss": "^8.4.32",
-    "postcss-load-config": "^5.0.2",
-    "prettier": "^3.3.3",
-    "prettier-plugin-svelte": "^3.2.7",
-    "prettier-plugin-tailwindcss": "^0.6.8",
-    "svelte": "5.1.9",
-    "svelte-check": "^4.0.5",
-    "svelte-preprocess": "^6.0.3",
-    "tailwindcss": "^3.4.0",
-    "tslib": "^2.6.2",
-    "typescript": "^5.3.3",
-    "vite": "^5.4.1"
-  },
-  "volta": {
-    "node": "22.20.0",
-    "pnpm": "10.18.0"
-  },
-  "lint-staged": {
-    "src/**/*.{js,ts,svelte,css}": [
-      "prettier --write --ignore-unknown"
-    ]
+    "@angular/build": "^20.1.4",
+    "@angular/cli": "^20.1.4",
+    "@angular/compiler-cli": "^20.1.4",
+    "@tauri-apps/cli": "^2",
+    "typescript": "~5.8.3"
   }
 }

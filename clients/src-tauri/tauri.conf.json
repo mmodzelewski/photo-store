@@ -1,15 +1,15 @@
 {
+  "$schema": "https://schema.tauri.app/config/2",
   "productName": "photo-store",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "identifier": "dev.modzelewski.photo-store",
   "build": {
-    "beforeDevCommand": "pnpm dev",
-    "beforeBuildCommand": "pnpm build",
-    "frontendDist": "../dist",
-    "devUrl": "http://localhost:1420"
+    "beforeDevCommand": "npm run start",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist/photo-store/browser"
   },
   "app": {
-    "withGlobalTauri": false,
     "windows": [
       {
         "fullscreen": false,

@@ -1,0 +1,8 @@
+<button (click)="login()">Login</button>
+
+<dialog #dialog>
+    <div>
+        <input type="password" [(ngModel)]="passphrase"/>
+        <button (click)="initPrivateKey()">Init encryption</button>
+    </div>
+</dialog>

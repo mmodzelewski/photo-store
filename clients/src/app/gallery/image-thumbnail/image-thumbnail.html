@@ -1,0 +1,5 @@
+<button #wrapper>
+    @defer (on viewport(wrapper)) {
+        <img [src]="convertedPath()" width="80px" height="80px" alt="Description"/>
+    }
+</button>

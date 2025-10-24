@@ -1,0 +1,8 @@
+<dialog #dialog>
+    <div>
+        <button (click)="prev()" [disabled]="!hasPrevious()">Prev</button>
+        <button (click)="dialog.close()">Close</button>
+        <img [src]="imagePath()" alt="Full-size preview"/>
+        <button (click)="next()" [disabled]="!hasNext()">Next</button>
+    </div>
+</dialog>

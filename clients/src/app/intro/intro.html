@@ -1,0 +1,15 @@
+<button (click)="selectDir()">Select directory</button>
+<dialog #dialog>
+    @if (filesIndexed() === null) {
+        <div>Indexing images</div>
+    } @else if (thumbnailsGenerated() === null) {
+        <div>Generating thumbnails</div>
+    } @else {
+        <div>
+            <p>
+                {{ thumbnailsGenerated()?.done }} / {{ thumbnailsGenerated()?.total }}
+            </p>
+            <img [src]="thumbnailToDisplay()" alt="Currently processed item"/>
+        </div>
+    }
+</dialog>

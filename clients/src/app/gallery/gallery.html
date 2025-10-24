@@ -1,0 +1,10 @@
+<h2>Gallery page</h2>
+<button (click)="syncImages()">Sync images</button>
+
+<div>
+    @for (image of images(); track image.id; let i = $index) {
+        <app-image-thumbnail [image]="image" (click)="openPreview(i)"/>
+    }
+</div>
+
+<app-image-preview-dialog [images]="images()"/>

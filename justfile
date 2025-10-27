@@ -1,11 +1,11 @@
 run-desktop:
-    cd clients && cargo tauri dev
+    cd clients/native && cargo tauri dev
 
 run-desktop-release:
-    cd clients && cargo tauri dev --release
+    cd clients/native && cargo tauri dev --release
 
 run-android:
-    cd clients && cargo tauri android dev
+    cd clients/native && cargo tauri android dev
 
 run-backend:
     cargo run -p backend
@@ -14,7 +14,7 @@ reset-db:
     cd backend && sqlx database reset --source db/migrations
 
 run-web:
-    cd web && pnpm dev
+    cd clients/web && pnpm dev
 
 fmt:
     cargo fmt --all

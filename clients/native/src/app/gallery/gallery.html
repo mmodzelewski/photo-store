@@ -1,7 +1,9 @@
-<h2>Gallery page</h2>
-<button (click)="syncImages()">Sync images</button>
+<div class="gallery-header">
+    <h2>Gallery</h2>
+    <button (click)="syncImages()">Sync images</button>
+</div>
 
-<div>
+<div class="gallery-grid">
     @for (image of images(); track image.id; let i = $index) {
         <app-image-thumbnail [image]="image" (click)="openPreview(i)"/>
     }

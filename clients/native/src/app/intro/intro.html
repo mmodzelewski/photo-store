@@ -1,11 +1,21 @@
-<button (click)="selectDir()">Select directory</button>
+<div class="intro-container">
+    <h1 class="login-title">Photo Store Setup</h1>
+    <p>Select a directory to store your photos</p>
+    <button (click)="selectDir()">Select directory</button>
+</div>
+
 <dialog #dialog>
     @if (filesIndexed() === null) {
-        <div>Indexing images</div>
+        <div class="dialog-content loading">
+            <div class="loading-text">Indexing images</div>
+        </div>
     } @else if (thumbnailsGenerated() === null) {
-        <div>Generating thumbnails</div>
+        <div class="dialog-content loading">
+            <div class="loading-text">Generating thumbnails</div>
+        </div>
     } @else {
-        <div>
+        <div class="dialog-content">
+            <div class="loading-text">Generating thumbnails</div>
             <p>
                 {{ thumbnailsGenerated()?.done }} / {{ thumbnailsGenerated()?.total }}
             </p>

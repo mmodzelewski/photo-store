@@ -5,7 +5,7 @@ import { type Image, toCoverUri } from "../image";
     selector: 'app-image-thumbnail',
     imports: [],
     templateUrl: './image-thumbnail.html',
-    styleUrl: './image-thumbnail.css',
+    styleUrl: './image-thumbnail.scss',
 })
 export class ImageThumbnail {
 

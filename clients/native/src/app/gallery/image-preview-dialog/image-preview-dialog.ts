@@ -6,7 +6,7 @@ import { type Image, toContainUri } from "../image";
     selector: 'app-image-preview-dialog',
     imports: [],
     templateUrl: './image-preview-dialog.html',
-    styleUrl: './image-preview-dialog.css',
+    styleUrl: './image-preview-dialog.scss',
 })
 export class ImagePreviewDialog {
 

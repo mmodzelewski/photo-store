@@ -10,7 +10,7 @@ import { Router } from "@angular/router";
         FormsModule
     ],
     templateUrl: './login.html',
-    styleUrl: './login.css',
+    styleUrl: './login.scss',
 })
 export class Login implements OnInit, OnDestroy {
 

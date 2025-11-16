@@ -22,7 +22,7 @@ interface FilesIndexedPayload {
     selector: 'app-intro',
     imports: [],
     templateUrl: './intro.html',
-    styleUrl: './intro.css',
+    styleUrl: './intro.scss',
 })
 export class Intro implements OnInit, OnDestroy {
 

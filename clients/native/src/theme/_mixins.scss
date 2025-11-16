@@ -1,0 +1,280 @@
+// Reusable SCSS Mixins
+@use 'variables' as *;
+
+// ============================================================================
+// Focus Ring Mixin
+// ============================================================================
+
+@mixin focus-ring($offset: $input-focus-ring-offset) {
+  outline: $input-focus-ring-width solid $color-border-focus;
+  outline-offset: $offset;
+  box-shadow: $shadow-focus;
+}
+
+@mixin focus-visible {
+  &:focus-visible {
+    @include focus-ring();
+  }
+}
+
+// ============================================================================
+// Container Mixins
+// ============================================================================
+
+// Constrained container for forms/content
+@mixin container-constrained($max-width: $container-max-width) {
+  max-width: $max-width;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: $container-padding;
+  padding-right: $container-padding;
+}
+
+// Full-width container
+@mixin container-full {
+  width: 100%;
+  padding-left: $container-padding;
+  padding-right: $container-padding;
+}
+
+// ============================================================================
+// Responsive Mixins
+// ============================================================================
+
+@mixin mobile {
+  @media (max-width: $breakpoint-mobile) {
+    @content;
+  }
+}
+
+@mixin desktop {
+  @media (min-width: $breakpoint-desktop) {
+    @content;
+  }
+}
+
+// ============================================================================
+// Button Mixins
+// ============================================================================
+
+@mixin button-base {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-2;
+  padding: $spacing-2 $spacing-4;
+  font-family: $font-family-base;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-normal;
+  border-radius: $radius-md;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all $transition-base;
+  text-decoration: none;
+  white-space: nowrap;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  @include focus-visible();
+}
+
+@mixin button-primary {
+  @include button-base();
+  background-color: $color-primary;
+  color: $color-text-on-primary;
+  border-color: $color-primary;
+
+  &:hover:not(:disabled) {
+    background-color: $color-primary-hover;
+    border-color: $color-primary-hover;
+  }
+
+  &:active:not(:disabled) {
+    background-color: $color-primary-dark;
+    border-color: $color-primary-dark;
+  }
+}
+
+@mixin button-secondary {
+  @include button-base();
+  background-color: $color-bg-elevated;
+  color: $color-text-primary;
+  border-color: $color-border;
+
+  &:hover:not(:disabled) {
+    background-color: $color-bg-elevated-hover;
+    border-color: $color-border-light;
+  }
+
+  &:active:not(:disabled) {
+    background-color: $color-bg-surface;
+  }
+}
+
+@mixin button-ghost {
+  @include button-base();
+  background-color: transparent;
+  color: $color-text-primary;
+  border-color: transparent;
+
+  &:hover:not(:disabled) {
+    background-color: $color-bg-elevated;
+  }
+
+  &:active:not(:disabled) {
+    background-color: $color-bg-elevated-hover;
+  }
+}
+
+// ============================================================================
+// Card/Surface Mixins
+// ============================================================================
+
+@mixin card {
+  background-color: $color-bg-elevated;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  padding: $spacing-4;
+}
+
+@mixin card-interactive {
+  @include card();
+  transition: all $transition-base;
+  cursor: pointer;
+
+  &:hover {
+    background-color: $color-bg-elevated-hover;
+    border-color: $color-border-light;
+    box-shadow: $shadow-md;
+  }
+
+  @include focus-visible();
+}
+
+// ============================================================================
+// Form Input Mixins
+// ============================================================================
+
+@mixin input-base {
+  width: 100%;
+  height: $input-height;
+  padding: $input-padding-y $input-padding-x;
+  font-family: $font-family-base;
+  font-size: $font-size-sm;
+  line-height: $line-height-normal;
+  color: $color-text-primary;
+  background-color: $color-bg-elevated;
+  border: $input-border-width solid $color-border;
+  border-radius: $radius-md;
+  transition: all $transition-base;
+
+  &::placeholder {
+    color: $color-text-muted;
+  }
+
+  &:hover:not(:disabled) {
+    border-color: $color-border-light;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: $color-border-focus;
+    box-shadow: $shadow-focus;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: $color-bg-base;
+  }
+
+  &.error {
+    border-color: $color-error;
+
+    &:focus {
+      box-shadow: 0 0 0 2px $color-bg-base, 0 0 0 4px $color-error;
+    }
+  }
+}
+
+// ============================================================================
+// Truncate Text Mixin
+// ============================================================================
+
+@mixin truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@mixin line-clamp($lines: 2) {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: $lines;
+  overflow: hidden;
+}
+
+// ============================================================================
+// Aspect Ratio Mixin
+// ============================================================================
+
+@mixin aspect-ratio($width, $height) {
+  position: relative;
+
+  &::before {
+    content: '';
+    display: block;
+    padding-top: calc(($height / $width) * 100%);
+  }
+
+  > * {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+  }
+}
+
+// ============================================================================
+// Overlay Mixin
+// ============================================================================
+
+@mixin overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: $color-bg-overlay;
+  z-index: $z-index-modal;
+}
+
+// ============================================================================
+// Scrollbar Styling
+// ============================================================================
+
+@mixin custom-scrollbar {
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: $color-bg-base;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: $color-border-light;
+    border-radius: $radius-sm;
+
+    &:hover {
+      background: $color-text-muted;
+    }
+  }
+}

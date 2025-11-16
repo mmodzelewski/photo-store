@@ -1,0 +1,231 @@
+// Dialog/Modal Component Styles
+@use 'variables' as *;
+@use 'mixins' as *;
+
+// ============================================================================
+// Dialog Backdrop
+// ============================================================================
+
+dialog {
+  border: none;
+  padding: 0;
+  background: transparent;
+  max-width: none;
+  max-height: none;
+
+  &::backdrop {
+    background-color: $color-bg-overlay;
+    backdrop-filter: blur(2px);
+  }
+}
+
+// ============================================================================
+// Dialog Container
+// ============================================================================
+
+.dialog {
+  position: relative;
+  background-color: $color-bg-elevated;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-xl;
+  width: 90vw;
+  max-width: 32rem; // 512px
+  max-height: 85vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+
+  @include mobile {
+    width: 95vw;
+    max-width: none;
+  }
+}
+
+// ============================================================================
+// Dialog Sizes
+// ============================================================================
+
+.dialog-sm {
+  max-width: 24rem; // 384px
+}
+
+.dialog-md {
+  max-width: 32rem; // 512px
+}
+
+.dialog-lg {
+  max-width: 48rem; // 768px
+}
+
+.dialog-xl {
+  max-width: 64rem; // 1024px
+}
+
+.dialog-full {
+  width: 100vw;
+  height: 100vh;
+  max-width: 100vw;
+  max-height: 100vh;
+  border-radius: 0;
+}
+
+// ============================================================================
+// Dialog Header
+// ============================================================================
+
+.dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $spacing-5 $spacing-6;
+  border-bottom: 1px solid $color-border;
+  flex-shrink: 0;
+}
+
+.dialog-title {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+  color: $color-text-primary;
+  margin: 0;
+}
+
+.dialog-close {
+  @include button-ghost();
+  padding: $spacing-2;
+  width: 2rem;
+  height: 2rem;
+  color: $color-text-muted;
+
+  &:hover {
+    color: $color-text-primary;
+  }
+}
+
+// ============================================================================
+// Dialog Body
+// ============================================================================
+
+.dialog-body {
+  padding: $spacing-6;
+  overflow-y: auto;
+  flex: 1;
+  @include custom-scrollbar();
+}
+
+// ============================================================================
+// Dialog Footer
+// ============================================================================
+
+.dialog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: $spacing-3;
+  padding: $spacing-5 $spacing-6;
+  border-top: 1px solid $color-border;
+  flex-shrink: 0;
+
+  &.dialog-footer-between {
+    justify-content: space-between;
+  }
+
+  &.dialog-footer-center {
+    justify-content: center;
+  }
+}
+
+// ============================================================================
+// Dialog Animations
+// ============================================================================
+
+dialog[open] {
+  animation: dialog-fade-in $transition-medium forwards;
+}
+
+dialog[open] .dialog {
+  animation: dialog-slide-up $transition-medium forwards;
+}
+
+@keyframes dialog-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dialog-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(2rem) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+// ============================================================================
+// Alert Dialog Variant
+// ============================================================================
+
+.dialog-alert {
+  .dialog-header {
+    background-color: $color-error-bg;
+    border-bottom-color: $color-error;
+  }
+
+  .dialog-title {
+    color: $color-error;
+  }
+}
+
+.dialog-success {
+  .dialog-header {
+    background-color: $color-success-bg;
+    border-bottom-color: $color-success;
+  }
+
+  .dialog-title {
+    color: $color-success;
+  }
+}
+
+.dialog-warning {
+  .dialog-header {
+    background-color: $color-warning-bg;
+    border-bottom-color: $color-warning;
+  }
+
+  .dialog-title {
+    color: $color-warning;
+  }
+}
+
+// ============================================================================
+// Confirm Dialog
+// ============================================================================
+
+.dialog-confirm {
+  .dialog-body {
+    padding: $spacing-8 $spacing-6;
+    text-align: center;
+  }
+
+  .dialog-icon {
+    font-size: $font-size-4xl;
+    margin-bottom: $spacing-4;
+  }
+
+  .dialog-message {
+    font-size: $font-size-lg;
+    color: $color-text-primary;
+    margin-bottom: $spacing-2;
+  }
+
+  .dialog-description {
+    font-size: $font-size-sm;
+    color: $color-text-secondary;
+  }
+}

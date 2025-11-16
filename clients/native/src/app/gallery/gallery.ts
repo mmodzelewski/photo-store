@@ -12,7 +12,7 @@ import { ImagePreviewDialog } from "./image-preview-dialog/image-preview-dialog"
         ImagePreviewDialog
     ],
     templateUrl: './gallery.html',
-    styleUrl: './gallery.css',
+    styleUrl: './gallery.scss',
 })
 export class Gallery implements OnInit, OnDestroy {
 

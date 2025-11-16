@@ -1,0 +1,130 @@
+// Typography Styles
+// Roboto font with system fallbacks
+
+@use 'variables' as *;
+
+// ============================================================================
+// Font Import
+// ============================================================================
+
+// Import Roboto from Google Fonts
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+
+// ============================================================================
+// Base Typography
+// ============================================================================
+
+body {
+  font-family: $font-family-base;
+  font-size: $font-size-base;
+  font-weight: $font-weight-normal;
+  line-height: $line-height-normal;
+  color: $color-text-primary;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+// ============================================================================
+// Heading Styles
+// ============================================================================
+
+h1, h2, h3, h4, h5, h6 {
+  margin: 0;
+  font-weight: $font-weight-bold;
+  line-height: $line-height-tight;
+  color: $color-text-primary;
+}
+
+h1 {
+  font-size: $font-size-4xl;
+  margin-bottom: $spacing-6;
+}
+
+h2 {
+  font-size: $font-size-3xl;
+  margin-bottom: $spacing-5;
+}
+
+h3 {
+  font-size: $font-size-2xl;
+  margin-bottom: $spacing-4;
+}
+
+h4 {
+  font-size: $font-size-xl;
+  margin-bottom: $spacing-4;
+}
+
+h5 {
+  font-size: $font-size-lg;
+  margin-bottom: $spacing-3;
+}
+
+h6 {
+  font-size: $font-size-base;
+  margin-bottom: $spacing-3;
+  font-weight: $font-weight-medium;
+}
+
+// ============================================================================
+// Text Elements
+// ============================================================================
+
+p {
+  margin: 0 0 $spacing-4 0;
+  color: $color-text-primary;
+}
+
+a {
+  color: $color-primary-light;
+  text-decoration: none;
+  transition: color $transition-base;
+
+  &:hover {
+    color: $color-primary-hover;
+    text-decoration: underline;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $color-primary;
+    outline-offset: 2px;
+    border-radius: $radius-sm;
+  }
+}
+
+strong, b {
+  font-weight: $font-weight-bold;
+}
+
+small {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+}
+
+// ============================================================================
+// Utility Classes
+// ============================================================================
+
+.text-xs { font-size: $font-size-xs; }
+.text-sm { font-size: $font-size-sm; }
+.text-base { font-size: $font-size-base; }
+.text-lg { font-size: $font-size-lg; }
+.text-xl { font-size: $font-size-xl; }
+.text-2xl { font-size: $font-size-2xl; }
+.text-3xl { font-size: $font-size-3xl; }
+.text-4xl { font-size: $font-size-4xl; }
+
+.font-normal { font-weight: $font-weight-normal; }
+.font-medium { font-weight: $font-weight-medium; }
+.font-bold { font-weight: $font-weight-bold; }
+
+.text-primary { color: $color-text-primary; }
+.text-secondary { color: $color-text-secondary; }
+.text-muted { color: $color-text-muted; }
+.text-success { color: $color-success; }
+.text-warning { color: $color-warning; }
+.text-error { color: $color-error; }
+
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+.text-right { text-align: right; }

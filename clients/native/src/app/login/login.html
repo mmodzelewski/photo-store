@@ -1,8 +1,12 @@
-<button (click)="login()">Login</button>
+<div class="login-container">
+    <h1 class="login-title">Photo Store</h1>
+    <button (click)="login()">Login</button>
+</div>
 
 <dialog #dialog>
-    <div>
-        <input type="password" [(ngModel)]="passphrase"/>
+    <div class="dialog-content">
+        <h3>Enter Passphrase</h3>
+        <input type="password" [(ngModel)]="passphrase" placeholder="Enter your passphrase"/>
         <button (click)="initPrivateKey()">Init encryption</button>
     </div>
 </dialog>

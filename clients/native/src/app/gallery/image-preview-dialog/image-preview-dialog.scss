@@ -1,0 +1,136 @@
+// Image Preview Dialog Component Styles
+@use '../../../theme/variables' as *;
+@use '../../../theme/mixins' as *;
+
+// ============================================================================
+// Dialog (Full Screen)
+// ============================================================================
+
+dialog {
+  border: none;
+  padding: 0;
+  background-color: $color-bg-overlay;
+  width: 100vw;
+  height: 100vh;
+  max-width: 100vw;
+  max-height: 100vh;
+
+  &::backdrop {
+    background-color: rgba(0, 0, 0, 0.95);
+  }
+
+  > div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    padding: $spacing-6;
+    gap: $spacing-4;
+    position: relative;
+
+    @include mobile {
+      padding: $spacing-4;
+    }
+  }
+}
+
+// ============================================================================
+// Image Container
+// ============================================================================
+
+img {
+  max-width: 90vw;
+  max-height: 70vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: $radius-md;
+  box-shadow: $shadow-xl;
+
+  @include mobile {
+    max-width: 95vw;
+    max-height: 60vh;
+  }
+}
+
+// ============================================================================
+// Navigation Buttons
+// ============================================================================
+
+button {
+  @include button-secondary();
+  min-width: 6rem;
+
+  &:disabled {
+    opacity: 0.3;
+  }
+}
+
+// Close button - position at top right
+button:nth-of-type(2) {
+  position: absolute;
+  top: $spacing-4;
+  right: $spacing-4;
+  z-index: 10;
+  @include button-ghost();
+  color: $color-text-primary;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.7);
+  }
+}
+
+// Previous button - position at left center
+button:nth-of-type(1) {
+  position: absolute;
+  left: $spacing-4;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+
+  @include mobile {
+    left: $spacing-2;
+  }
+}
+
+// Next button - position at right center
+button:nth-of-type(3) {
+  position: absolute;
+  right: $spacing-4;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+
+  @include mobile {
+    right: $spacing-2;
+  }
+}
+
+// ============================================================================
+// Keyboard Hint (Optional Enhancement)
+// ============================================================================
+
+.keyboard-hint {
+  position: absolute;
+  bottom: $spacing-6;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: $font-size-xs;
+  color: $color-text-muted;
+  background-color: rgba(0, 0, 0, 0.5);
+  padding: $spacing-2 $spacing-4;
+  border-radius: $radius-md;
+  backdrop-filter: blur(4px);
+
+  kbd {
+    background-color: $color-bg-elevated;
+    padding: $spacing-1 $spacing-2;
+    border-radius: $radius-sm;
+    font-family: $font-family-base;
+    margin: 0 $spacing-1;
+  }
+}

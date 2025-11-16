@@ -1,0 +1,64 @@
+// Gallery Component Styles
+@use '../../theme/variables' as *;
+@use '../../theme/mixins' as *;
+
+// ============================================================================
+// Gallery Container (Full Width)
+// ============================================================================
+
+:host {
+  display: block;
+  width: 100%;
+  min-height: 100vh;
+  padding: $spacing-6 $spacing-4;
+
+  @include desktop {
+    padding: $spacing-8 $spacing-6;
+  }
+}
+
+// ============================================================================
+// Gallery Header
+// ============================================================================
+
+.gallery-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-6;
+  max-width: 1920px;
+  margin-left: auto;
+  margin-right: auto;
+
+  h2 {
+    font-size: $font-size-3xl;
+    font-weight: $font-weight-bold;
+    color: $color-text-primary;
+    margin: 0;
+  }
+}
+
+button {
+  @include button-primary();
+}
+
+// ============================================================================
+// Gallery Grid
+// ============================================================================
+
+.gallery-grid {
+  display: grid;
+  gap: $spacing-4;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  max-width: 1920px;
+  margin: 0 auto;
+
+  @include mobile {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: $spacing-3;
+  }
+
+  @include desktop {
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  }
+}

@@ -1,0 +1,10 @@
+// Main Theme Entry Point
+// Import order matters: variables → mixins → base → components
+
+@forward 'variables';
+@forward 'mixins';
+@forward 'typography';
+@forward 'base';
+@forward 'buttons';
+@forward 'forms';
+@forward 'dialog';

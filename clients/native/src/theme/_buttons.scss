@@ -1,0 +1,168 @@
+// Button Component Styles
+@use 'sass:color';
+@use 'variables' as *;
+@use 'mixins' as *;
+
+// ============================================================================
+// Button Base Classes
+// ============================================================================
+
+.btn {
+  @include button-base();
+}
+
+// ============================================================================
+// Button Variants
+// ============================================================================
+
+.btn-primary {
+  @include button-primary();
+}
+
+.btn-secondary {
+  @include button-secondary();
+}
+
+.btn-ghost {
+  @include button-ghost();
+}
+
+// ============================================================================
+// Button Sizes
+// ============================================================================
+
+.btn-sm {
+  height: 2rem; // 32px
+  padding: $spacing-1 $spacing-3;
+  font-size: $font-size-xs;
+}
+
+.btn-md {
+  height: 2.5rem; // 40px
+  padding: $spacing-2 $spacing-4;
+  font-size: $font-size-sm;
+}
+
+.btn-lg {
+  height: 3rem; // 48px
+  padding: $spacing-3 $spacing-5;
+  font-size: $font-size-base;
+}
+
+// ============================================================================
+// Button Modifiers
+// ============================================================================
+
+.btn-full {
+  width: 100%;
+}
+
+.btn-icon {
+  padding: $spacing-2;
+  width: 2.5rem;
+  height: 2.5rem;
+
+  &.btn-sm {
+    width: 2rem;
+    height: 2rem;
+    padding: $spacing-1;
+  }
+
+  &.btn-lg {
+    width: 3rem;
+    height: 3rem;
+    padding: $spacing-3;
+  }
+}
+
+// ============================================================================
+// Button States - Danger/Success/Warning
+// ============================================================================
+
+.btn-danger {
+  @include button-base();
+  background-color: $color-error;
+  color: $color-text-on-primary;
+  border-color: $color-error;
+
+  &:hover:not(:disabled) {
+    background-color: color.adjust($color-error, $lightness: -5%);
+    border-color: color.adjust($color-error, $lightness: -5%);
+  }
+
+  &:active:not(:disabled) {
+    background-color: color.adjust($color-error, $lightness: -10%);
+  }
+}
+
+.btn-success {
+  @include button-base();
+  background-color: $color-success;
+  color: $color-text-on-primary;
+  border-color: $color-success;
+
+  &:hover:not(:disabled) {
+    background-color: color.adjust($color-success, $lightness: -5%);
+    border-color: color.adjust($color-success, $lightness: -5%);
+  }
+
+  &:active:not(:disabled) {
+    background-color: color.adjust($color-success, $lightness: -10%);
+  }
+}
+
+.btn-warning {
+  @include button-base();
+  background-color: $color-warning;
+  color: $color-text-on-primary;
+  border-color: $color-warning;
+
+  &:hover:not(:disabled) {
+    background-color: color.adjust($color-warning, $lightness: -5%);
+    border-color: color.adjust($color-warning, $lightness: -5%);
+  }
+
+  &:active:not(:disabled) {
+    background-color: color.adjust($color-warning, $lightness: -10%);
+  }
+}
+
+// ============================================================================
+// Button Group
+// ============================================================================
+
+.btn-group {
+  display: inline-flex;
+  gap: $spacing-2;
+
+  &.btn-group-full {
+    display: flex;
+    width: 100%;
+
+    .btn {
+      flex: 1;
+    }
+  }
+
+  &.btn-group-attached {
+    gap: 0;
+
+    .btn {
+      border-radius: 0;
+
+      &:first-child {
+        border-top-left-radius: $radius-md;
+        border-bottom-left-radius: $radius-md;
+      }
+
+      &:last-child {
+        border-top-right-radius: $radius-md;
+        border-bottom-right-radius: $radius-md;
+      }
+
+      &:not(:last-child) {
+        border-right-width: 0;
+      }
+    }
+  }
+}

@@ -89,7 +89,7 @@ impl Image {
         Image { data: img }
     }
 
-    fn get(&self) -> fr::Image {
+    fn get(&self) -> fr::Image<'_> {
         let width = NonZeroU32::new(self.data.width()).unwrap();
         let height = NonZeroU32::new(self.data.height()).unwrap();
         fr::Image::from_vec_u8(
@@ -116,6 +116,7 @@ impl Size {
     }
 }
 
+#[allow(dead_code)]
 pub fn generate_thumbnails(file_desc: &FileDescriptor, output_directory: &Path) -> Vec<PathBuf> {
     let mut thumbnails = Vec::new();
 

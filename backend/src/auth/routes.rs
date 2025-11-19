@@ -1,8 +1,8 @@
 use axum::routing::get;
-use axum::{routing::post, Router};
+use axum::{Router, routing::post};
 
-use crate::auth::google;
 use crate::AppState;
+use crate::auth::google;
 
 use super::handlers::{get_key, login, login_desktop, save_key};
 

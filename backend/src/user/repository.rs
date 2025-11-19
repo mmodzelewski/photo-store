@@ -14,7 +14,7 @@ pub(super) async fn save_user_with_credentials(
     let mut transaction = db
         .begin()
         .await
-        .map_err(|e| Error::DbError(format!("Could not start transaction {}", e)))?;
+        .map_err(|e| Error::Database(format!("Could not start transaction {}", e)))?;
     let query = sqlx::query!(
         r#"INSERT INTO app_user (
                 uuid, name
@@ -26,7 +26,7 @@ pub(super) async fn save_user_with_credentials(
     query
         .execute(&mut *transaction)
         .await
-        .map_err(|e| Error::DbError(format!("Could not save user {}", e)))?;
+        .map_err(|e| Error::Database(format!("Could not save user {}", e)))?;
 
     let query = sqlx::query!(
         r#"INSERT INTO user_account (
@@ -41,12 +41,12 @@ pub(super) async fn save_user_with_credentials(
     query
         .execute(&mut *transaction)
         .await
-        .map_err(|e| Error::DbError(format!("Could not save user account {}", e)))?;
+        .map_err(|e| Error::Database(format!("Could not save user account {}", e)))?;
 
     transaction
         .commit()
         .await
-        .map_err(|e| Error::DbError(format!("Could not commit transaction {}", e)))?;
+        .map_err(|e| Error::Database(format!("Could not commit transaction {}", e)))?;
     Ok(())
 }
 
@@ -60,7 +60,7 @@ pub(super) async fn get_by_username(db: &DbPool, username: &str) -> Result<User>
     let user = query
         .fetch_one(db)
         .await
-        .map_err(|e| Error::DbError(format!("Could not get user {}", e)))?;
+        .map_err(|e| Error::Database(format!("Could not get user {}", e)))?;
 
     Ok(User {
         uuid: user.user_id,
@@ -84,7 +84,7 @@ pub(super) async fn find_by_provider(
     let result = query
         .fetch_optional(db)
         .await
-        .map_err(|e| Error::DbError(format!("Could not get user {}", e)))?;
+        .map_err(|e| Error::Database(format!("Could not get user {}", e)))?;
     Ok(result.map(|r| UserId(r.user_id)))
 }
 
@@ -97,14 +97,14 @@ pub(crate) async fn save_user_with_external_provider(
     let mut transaction = db
         .begin()
         .await
-        .map_err(|e| Error::DbError(format!("Could not start transaction {}", e)))?;
+        .map_err(|e| Error::Database(format!("Could not start transaction {}", e)))?;
 
     let query = sqlx::query!(r#"INSERT INTO app_user (uuid) VALUES ($1)"#, user_id);
 
     query
         .execute(&mut *transaction)
         .await
-        .map_err(|e| Error::DbError(format!("Could not save user {}", e)))?;
+        .map_err(|e| Error::Database(format!("Could not save user {}", e)))?;
 
     let query = sqlx::query!(
         r#"INSERT INTO user_account (user_id, account_id, provider) VALUES ($1, $2, $3)"#,
@@ -116,18 +116,19 @@ pub(crate) async fn save_user_with_external_provider(
     query
         .execute(&mut *transaction)
         .await
-        .map_err(|e| Error::DbError(format!("Could not save user account {}", e)))?;
+        .map_err(|e| Error::Database(format!("Could not save user account {}", e)))?;
 
     transaction
         .commit()
         .await
-        .map_err(|e| Error::DbError(format!("Could not commit transaction {}", e)))?;
+        .map_err(|e| Error::Database(format!("Could not commit transaction {}", e)))?;
 
     Ok(())
 }
 
 pub(super) struct User {
     pub uuid: Uuid,
+    #[allow(dead_code)]
     pub username: String,
     pub password: String,
 }

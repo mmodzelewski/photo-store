@@ -1,4 +1,4 @@
-use sqlx::{migrate, postgres::PgPoolOptions, Pool, Postgres};
+use sqlx::{Pool, Postgres, migrate, postgres::PgPoolOptions};
 
 use crate::{config::DatabaseConfig, error::Result};
 
@@ -9,11 +9,12 @@ pub async fn init_db(config: &DatabaseConfig) -> Result<DbPool> {
         .max_connections(5)
         .connect(&config.url)
         .await
-        .map_err(|e| crate::error::Error::DbError(format!("Could not connect to db {}", e)))?;
+        .map_err(|e| crate::error::Error::Database(format!("Could not connect to db {}", e)))?;
 
-    migrate!("db/migrations").run(&pool).await.map_err(|e| {
-        crate::error::Error::DbMigrationError(format!("Could not run migrations {}", e))
-    })?;
+    migrate!("db/migrations")
+        .run(&pool)
+        .await
+        .map_err(|e| crate::error::Error::DbMigration(format!("Could not run migrations {}", e)))?;
 
     Ok(pool)
 }

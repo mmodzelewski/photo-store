@@ -1,9 +1,9 @@
 use std::env;
 
+use axum::Json;
 use axum::extract::{Query, State};
 use axum::response::Redirect;
-use axum::Json;
-use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
+use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode};
 use oauth2::basic::{
     BasicErrorResponse, BasicRevocationErrorResponse, BasicTokenIntrospectionResponse,
     BasicTokenType,
@@ -20,11 +20,11 @@ use uuid::Uuid;
 
 use dtos::auth::LoginResponse;
 
-use crate::auth::repository::AuthRepository;
-use crate::auth::AuthorizationRequest;
-use crate::error::Result;
-use crate::user::{register_or_get_with_external_provider, AccountProvider};
 use crate::AppState;
+use crate::auth::AuthorizationRequest;
+use crate::auth::repository::AuthRepository;
+use crate::error::Result;
+use crate::user::{AccountProvider, register_or_get_with_external_provider};
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 struct IdToken {

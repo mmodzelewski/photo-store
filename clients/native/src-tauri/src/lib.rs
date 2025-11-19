@@ -17,8 +17,8 @@ use http::HttpClient;
 use log::{debug, error};
 use state::SyncedAppState;
 use std::fs;
-use tauri::http::Response;
 use tauri::Manager;
+use tauri::http::Response;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {

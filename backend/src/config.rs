@@ -31,10 +31,10 @@ impl Config {
         let settings = config::Config::builder()
             .add_source(Environment::with_prefix("app"))
             .build()
-            .map_err(|e| Error::ConfigurationError(format!("Failed to load configuration {}", e)))?
+            .map_err(|e| Error::Configuration(format!("Failed to load configuration {}", e)))?
             .try_deserialize()
             .map_err(|e| {
-                Error::ConfigurationError(format!("Failed to deserialize configuration {}", e))
+                Error::Configuration(format!("Failed to deserialize configuration {}", e))
             })?;
 
         info!("Successfully loaded configuration");

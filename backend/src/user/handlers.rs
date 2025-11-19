@@ -1,15 +1,15 @@
 use argon2::{
-    password_hash::{rand_core::OsRng, SaltString},
     Argon2, PasswordHash, PasswordHasher, PasswordVerifier,
+    password_hash::{SaltString, rand_core::OsRng},
 };
-use axum::{extract::State, Json};
+use axum::{Json, extract::State};
 use tracing::debug;
 use uuid::Uuid;
 
 use crate::{
+    AppState,
     database::DbPool,
     error::{Error, Result},
-    AppState,
 };
 
 use super::repository::{self, AccountProvider};
@@ -78,7 +78,7 @@ fn hash_password(password: &str) -> Result<String> {
 
     let hash = argon2
         .hash_password(password.as_bytes(), &salt)
-        .map_err(|e| Error::PasswordHashingError(e.to_string()))?;
+        .map_err(|e| Error::PasswordHashing(e.to_string()))?;
     Ok(hash.to_string())
 }
 
@@ -98,6 +98,6 @@ fn verify_password(password: &str, hash: &str) -> Result<()> {
 
     argon2
         .verify_password(password.as_bytes(), &parsed_hash)
-        .map_err(|e| Error::PasswordHashingError(e.to_string()))?;
+        .map_err(|e| Error::PasswordHashing(e.to_string()))?;
     Ok(())
 }

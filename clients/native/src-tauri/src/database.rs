@@ -7,10 +7,10 @@ use crate::{
 use anyhow::Context;
 use log::debug;
 use rusqlite::{
-    types::{FromSql, FromSqlError},
     Connection, OptionalExtension, ToSql,
+    types::{FromSql, FromSqlError},
 };
-use rusqlite_migration::{Migrations, M};
+use rusqlite_migration::{M, Migrations};
 use std::{
     collections::HashMap,
     path::PathBuf,

@@ -28,7 +28,7 @@ impl FileRepository for DbFileRepository {
             .fetch_one(&self.db)
             .await
             .map_err(|e| {
-                crate::error::Error::DbError(format!("Could not check if file exists {}", e))
+                crate::error::Error::Database(format!("Could not check if file exists {}", e))
             })?;
         let res = count.count.map(|c| c > 0).unwrap_or(false);
         Ok(res)
@@ -47,7 +47,7 @@ impl FileRepository for DbFileRepository {
         )
         .fetch_optional(&self.db)
         .await
-        .map_err(|e| crate::error::Error::DbError(format!("Could not get file {}", e)))?;
+        .map_err(|e| crate::error::Error::Database(format!("Could not get file {}", e)))?;
 
         Ok(file)
     }
@@ -74,7 +74,7 @@ impl FileRepository for DbFileRepository {
         .fetch_all(&self.db)
         .await
         .map_err(|e| {
-            crate::error::Error::DbError(format!("Could not get synced files for user {}", e))
+            crate::error::Error::Database(format!("Could not get synced files for user {}", e))
         })?;
 
         Ok(files)
@@ -99,7 +99,7 @@ impl FileRepository for DbFileRepository {
         query
             .execute(&self.db)
             .await
-            .map_err(|e| crate::error::Error::DbError(format!("Could not save file {}", e)))?;
+            .map_err(|e| crate::error::Error::Database(format!("Could not save file {}", e)))?;
 
         Ok(())
     }
@@ -112,7 +112,7 @@ impl FileRepository for DbFileRepository {
         );
 
         query.execute(&self.db).await.map_err(|e| {
-            crate::error::Error::DbError(format!("Could not update file {} state {}", file_id, e))
+            crate::error::Error::Database(format!("Could not update file {} state {}", file_id, e))
         })?;
 
         Ok(())
@@ -139,7 +139,7 @@ pub mod tests {
             Ok(exists)
         }
 
-        async fn find(&self, uuid: &Uuid) -> Result<Option<File>> {
+        async fn find(&self, _uuid: &Uuid) -> Result<Option<File>> {
             todo!()
         }
 
@@ -163,7 +163,7 @@ pub mod tests {
             Ok(())
         }
 
-        async fn update_state(&self, file_id: &Uuid, state: FileState) -> Result<()> {
+        async fn update_state(&self, _file_id: &Uuid, _state: FileState) -> Result<()> {
             todo!()
         }
     }

@@ -8,32 +8,32 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum Error {
     #[error("File upload error: {0}")]
-    FileUploadError(String),
+    FileUpload(String),
     #[error("File download error: {0}")]
-    FileDownloadError(String),
+    FileDownload(String),
     #[error("File not found: {0}")]
     FileNotFound(uuid::Uuid),
     #[error("Unauthorized")]
     Unauthorized,
     #[error("Database error: {0}")]
-    DbError(String),
+    Database(String),
     #[error("Database migration error: {0}")]
-    DbMigrationError(String),
+    DbMigration(String),
     #[error("Auth error {0}")]
-    AuthError(#[from] crate::auth::error::Error),
+    Auth(#[from] crate::auth::error::Error),
     #[error("Password hashing error: {0}")]
-    PasswordHashingError(String),
+    PasswordHashing(String),
     #[error("Configuration error: {0}")]
-    ConfigurationError(String),
+    Configuration(String),
     #[error("Crypto error: {0}")]
-    CryptoError(#[from] crypto::error::Error),
+    Crypto(#[from] crypto::error::Error),
 }
 
 impl IntoResponse for Error {
     fn into_response(self) -> Response {
         println!("{:?}", self);
 
-        if let Error::AuthError(_) = self {
+        if let Error::Auth(_) = self {
             return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response();
         }
 

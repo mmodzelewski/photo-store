@@ -1,4 +1,4 @@
-use axum::{extract::DefaultBodyLimit, routing::get, Router};
+use axum::{Router, extract::DefaultBodyLimit, routing::get};
 use tower_http::limit::RequestBodyLimitLayer;
 
 use crate::AppState;

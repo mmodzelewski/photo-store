@@ -17,7 +17,7 @@ impl AuthRepository {
         );
 
         query.execute(db).await.map_err(|e| {
-            crate::error::Error::DbError(format!("Could not save auth token: {}", e))
+            crate::error::Error::Database(format!("Could not save auth token: {}", e))
         })?;
 
         Ok(())
@@ -30,7 +30,7 @@ impl AuthRepository {
         );
 
         let row = query.fetch_one(db).await.map_err(|e| {
-            crate::error::Error::DbError(format!("Could not get auth token: {}", e))
+            crate::error::Error::Database(format!("Could not get auth token: {}", e))
         })?;
 
         Ok(row.user_id)
@@ -46,7 +46,7 @@ impl AuthRepository {
         );
 
         query.execute(db).await.map_err(|e| {
-            crate::error::Error::DbError(format!("Could not save auth request: {}", e))
+            crate::error::Error::Database(format!("Could not save auth request: {}", e))
         })?;
 
         Ok(())
@@ -63,7 +63,7 @@ impl AuthRepository {
         );
 
         let auth_request = query.fetch_one(db).await.map_err(|e| {
-            crate::error::Error::DbError(format!("Could not get auth request: {}", e))
+            crate::error::Error::Database(format!("Could not get auth request: {}", e))
         })?;
 
         Ok(auth_request)
@@ -87,7 +87,7 @@ impl AuthRepository {
         query
             .execute(db)
             .await
-            .map_err(|e| Error::DbError(format!("Could not save user keys: {}", e)))?;
+            .map_err(|e| Error::Database(format!("Could not save user keys: {}", e)))?;
 
         Ok(())
     }
@@ -103,7 +103,7 @@ impl AuthRepository {
         let result = query
             .fetch_optional(db)
             .await
-            .map_err(|e| Error::DbError(format!("Could not get private_key {}", e)))?
+            .map_err(|e| Error::Database(format!("Could not get private_key {}", e)))?
             .map(|row| row.private_key);
 
         Ok(result)

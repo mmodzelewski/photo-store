@@ -1,7 +1,7 @@
 use ::rsa::{Oaep, RsaPublicKey};
-use aes_gcm::aead::consts::U12;
 use aes_gcm::Nonce;
-use aes_gcm::{aead::Aead, Aes256Gcm, Key, KeyInit};
+use aes_gcm::aead::consts::U12;
+use aes_gcm::{Aes256Gcm, Key, KeyInit, aead::Aead};
 use argon2::Argon2;
 use base64ct::{Base64, Encoding};
 use bytes::Bytes;
@@ -54,7 +54,7 @@ pub fn decode_encryption_key(
             Error::EncryptionError(format!("Could not decode encryption key, error {}", e))
         })
         .and_then(|key| decrypt_fn(&key))
-        .map(|key| Key::<Aes256Gcm>::clone_from_slice(&key))?;
+        .map(|key| Key::<Aes256Gcm>::from(<[u8; 32]>::try_from(key.as_slice()).unwrap()))?;
     Ok(encryption_key)
 }
 
@@ -92,8 +92,8 @@ fn hash(data: &[u8]) -> String {
 fn generate_nonce_from_uuid(uuid: Uuid) -> Nonce<U12> {
     let uuid_bytes = uuid.as_bytes();
     let hash = Sha256::digest(uuid_bytes);
-    let nonce_bytes = &hash[0..12];
-    Nonce::clone_from_slice(nonce_bytes)
+    let nonce_bytes: [u8; 12] = hash[0..12].try_into().unwrap();
+    Nonce::from(nonce_bytes)
 }
 
 pub fn encrypt_data_raw(data: &[u8], cipher: &Aes256Gcm, nonce: &Nonce<U12>) -> String {
@@ -114,8 +114,8 @@ pub fn decrypt_data_raw(
 
 pub fn generate_cipher(user_id: &Uuid, passphrase: &str) -> error::Result<(Aes256Gcm, Nonce<U12>)> {
     let salt = user_id.as_bytes();
-    let nonce = &salt[4..16];
-    let nonce = Nonce::clone_from_slice(nonce);
+    let nonce_bytes: [u8; 12] = salt[4..16].try_into().unwrap();
+    let nonce = Nonce::from(nonce_bytes);
 
     let mut enc_key = [0u8; 32];
     Argon2::default()

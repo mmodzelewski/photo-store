@@ -8,9 +8,9 @@ use rsa::RsaPublicKey;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Emitter, Manager};
+use time::OffsetDateTime;
 use time::format_description::FormatItem;
 use time::macros::format_description;
-use time::OffsetDateTime;
 use uuid::Uuid;
 use walkdir::{DirEntry, WalkDir};
 
@@ -28,6 +28,7 @@ struct FilesIndexed {
     total: usize,
 }
 
+#[allow(dead_code)]
 #[derive(Clone, serde::Serialize)]
 struct ThumbnailsGenerated {
     done: usize,
@@ -74,7 +75,8 @@ pub(crate) async fn save_images_dirs(
     Ok(())
 }
 
-fn generate_thumbnails(files: &Vec<FileDescriptor>, app_handle: &AppHandle) -> Result<()> {
+#[allow(dead_code)]
+fn generate_thumbnails(files: &[FileDescriptor], app_handle: &AppHandle) -> Result<()> {
     debug!("Start generating thumbnails");
     let thumbnails_dir = app_handle
         .path()
@@ -149,7 +151,7 @@ fn hash(path: &Path) -> Result<String> {
     Ok(encoded)
 }
 
-fn get_date(file: &DirEntry, path: &String) -> Result<OffsetDateTime> {
+fn get_date(file: &DirEntry, path: &str) -> Result<OffsetDateTime> {
     get_date_from_exif(path).or_else(|_| get_file_date(file))
 }
 

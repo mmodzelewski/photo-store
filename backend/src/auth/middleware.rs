@@ -1,16 +1,16 @@
 use axum::{
     body::Body,
     extract::{FromRequestParts, State},
-    http::{request::Parts, Request},
+    http::{Request, request::Parts},
     middleware::Next,
     response::Response,
 };
 use tracing::debug;
 
 use crate::{
+    AppState,
     ctx::Ctx,
     error::{Error, Result},
-    AppState,
 };
 
 use super::error::Error as AuthError;
@@ -48,7 +48,7 @@ pub(crate) async fn ctx_resolver(
     let db = state.db;
     let user_id = match auth_token {
         Ok(auth_token) => super::handlers::verify_token(&db, auth_token).await,
-        Err(e) => Err(Error::AuthError(e)),
+        Err(e) => Err(Error::Auth(e)),
     };
 
     let result_ctx = user_id.map(Ctx::new);

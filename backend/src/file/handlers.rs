@@ -4,25 +4,25 @@ use axum::body::Bytes;
 use axum::extract::Query;
 use axum::http::{HeaderMap, HeaderValue};
 use axum::{
-    extract::{multipart::Field, Multipart, Path, State},
     Json,
+    extract::{Multipart, Path, State, multipart::Field},
 };
 use http::header;
-use serde::{de, Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, de};
 use time::OffsetDateTime;
 use tracing::{debug, error, warn};
 use uuid::Uuid;
 
 use dtos::file::{FileMetadata, FilesUploadRequest};
 
-use super::{repository::DbFileRepository, File};
+use super::{File, repository::DbFileRepository};
 use crate::config::StorageConfig;
 use crate::file::repository::FileRepository;
 use crate::{
+    AppState,
     ctx::Ctx,
     error::{Error, Result},
     file::FileState,
-    AppState,
 };
 
 pub(super) async fn upload_files_metadata(
@@ -49,7 +49,7 @@ async fn upload_files_metadata_internal(
     request: FilesUploadRequest,
 ) -> Result<()> {
     if request.user_id != ctx.user_id() {
-        return Err(Error::FileUploadError(format!(
+        return Err(Error::FileUpload(format!(
             "User {} is trying to upload files for user {}",
             ctx.user_id(),
             request.user_id
@@ -66,7 +66,7 @@ async fn upload_files_metadata_internal(
 
         let file = File {
             path: item.path.clone(),
-            name: item.path.split('/').last().unwrap().to_string(),
+            name: item.path.split('/').next_back().unwrap().to_string(),
             state: FileState::New,
             uuid: item.uuid,
             created_at: item.date,
@@ -97,7 +97,7 @@ fn empty_string_as_none<'de, D: Deserializer<'de>>(
     match opt.as_deref() {
         None | Some("") => Ok(None),
         Some(value) => {
-            let timestamp = value.parse::<i64>().map_err(|err| {
+            let timestamp = value.parse::<i64>().map_err(|_err| {
                 de::Error::invalid_value(de::Unexpected::Str(value), &"a unix timestamp in seconds")
             })?;
             OffsetDateTime::from_unix_timestamp(timestamp)
@@ -139,7 +139,6 @@ pub(super) async fn upload_file(
     State(state): State<AppState>,
     ctx: Ctx,
     Path(file_id): Path<Uuid>,
-    headers: HeaderMap,
     mut multipart: Multipart,
 ) -> Result<()> {
     debug!(
@@ -150,13 +149,14 @@ pub(super) async fn upload_file(
 
     let repo = DbFileRepository { db: state.db };
 
-    let file = repo.find(&file_id).await?.ok_or_else(|| {
-        Error::FileUploadError(format!("Metadata for file {:?} not found", &file_id))
-    })?;
+    let file = repo
+        .find(&file_id)
+        .await?
+        .ok_or_else(|| Error::FileUpload(format!("Metadata for file {:?} not found", &file_id)))?;
     debug!("Found file: {:?}", file);
 
     if file.uploader_id != ctx.user_id() {
-        return Err(Error::FileUploadError(format!(
+        return Err(Error::FileUpload(format!(
             "User {} is trying to upload file {} for user {}",
             ctx.user_id(),
             file_id,
@@ -173,7 +173,7 @@ pub(super) async fn upload_file(
             let mut thumbnails_uploaded = 0;
 
             while let Some(field) = multipart.next_field().await.map_err(|e| {
-                Error::FileUploadError(format!(
+                Error::FileUpload(format!(
                     "Failed while getting next multipart field for file {}, error {}",
                     file_id, e
                 ))
@@ -181,15 +181,15 @@ pub(super) async fn upload_file(
                 debug!("Got field: {:?}", &field);
                 let headers = field.headers().clone();
                 let sha256 = headers.get("sha256_checksum").ok_or_else(|| {
-                    Error::FileUploadError("Missing sha256 checksum header".to_string())
+                    Error::FileUpload("Missing sha256 checksum header".to_string())
                 })?;
                 if sha256.is_empty() {
-                    return Err(Error::FileUploadError(
+                    return Err(Error::FileUpload(
                         "Empty sha256 checksum header".to_string(),
                     ));
                 }
                 let sha256 = sha256.to_str().map_err(|e| {
-                    Error::FileUploadError(format!("Could not parse sha256 checksum header {}", e))
+                    Error::FileUpload(format!("Could not parse sha256 checksum header {}", e))
                 })?;
 
                 match field.name() {
@@ -210,7 +210,7 @@ pub(super) async fn upload_file(
             }
 
             if !original_uploaded {
-                return Err(Error::FileUploadError(
+                return Err(Error::FileUpload(
                     "Original file was not uploaded".to_string(),
                 ));
             }
@@ -230,7 +230,7 @@ pub(super) async fn upload_file(
                 "File {} should be in state New, but is in state {:?}",
                 file_id, file.state
             );
-            Err(Error::FileUploadError(format!(
+            Err(Error::FileUpload(format!(
                 "File {} should be in state New, but is in state {:?}",
                 file_id, file.state
             )))
@@ -259,7 +259,7 @@ async fn upload(
 
     let content_type = field
         .content_type()
-        .ok_or(Error::FileUploadError(format!(
+        .ok_or(Error::FileUpload(format!(
             "Missing content type for file {}",
             file.uuid
         )))?
@@ -267,7 +267,7 @@ async fn upload(
 
     let data = field.bytes().await.map_err(|e| {
         error!("Could not read file {} bytes {}", file.uuid, e);
-        Error::FileUploadError(format!("Could not read field bytes {}", e))
+        Error::FileUpload(format!("Could not read field bytes {}", e))
     })?;
 
     crypto::verify_data_hash(file.uuid, sha256, &data)?;
@@ -288,7 +288,7 @@ async fn upload(
                 file.uuid, field_name, e
             );
             error!(message);
-            Error::FileUploadError(message)
+            Error::FileUpload(message)
         })?;
 
     debug!(
@@ -349,7 +349,7 @@ pub(super) async fn download_file(
         .await
         .map_err(|e| {
             error!("Could not get file {}, error: {}", file_id, e);
-            Error::FileDownloadError(format!("Could not get file {}", file_id))
+            Error::FileDownload(format!("Could not get file {}", file_id))
         })?;
 
     let content_type = get_object_output
@@ -364,7 +364,7 @@ pub(super) async fn download_file(
                 "Could not parse content type {}, error: {}",
                 content_type, e
             );
-            Error::FileDownloadError("Could not set content type header".to_string())
+            Error::FileDownload("Could not set content type header".to_string())
         })?,
     );
 
@@ -374,7 +374,7 @@ pub(super) async fn download_file(
         .await
         .map_err(|e| {
             error!("Could not read file {} bytes, error: {}", file_id, e);
-            Error::FileDownloadError("Could not read file bytes".to_string())
+            Error::FileDownload("Could not read file bytes".to_string())
         })?
         .into_bytes();
 
@@ -403,10 +403,12 @@ mod tests {
 
         // then
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .starts_with("File upload error"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .starts_with("File upload error")
+        );
     }
 
     #[tokio::test]

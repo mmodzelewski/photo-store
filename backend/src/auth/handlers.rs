@@ -1,13 +1,13 @@
 use axum::{
-    extract::{Query, State},
     Json,
+    extract::{Query, State},
 };
 use dtos::auth::{LoginRequest, LoginResponse, PrivateKeyResponse, SaveRsaKeysRequest};
 use serde::{Deserialize, Serialize};
 use tracing::debug;
 use uuid::Uuid;
 
-use crate::{ctx::Ctx, database::DbPool, error::Result, user::verify_user_password, AppState};
+use crate::{AppState, ctx::Ctx, database::DbPool, error::Result, user::verify_user_password};
 
 use super::{error::Error, repository::AuthRepository};
 

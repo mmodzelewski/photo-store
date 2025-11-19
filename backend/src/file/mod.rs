@@ -20,6 +20,7 @@ pub(crate) struct File {
     pub state: FileState,
     pub uuid: uuid::Uuid,
     pub created_at: OffsetDateTime,
+    #[allow(dead_code)]
     pub added_at: OffsetDateTime,
     pub sha256: String,
     pub owner_id: uuid::Uuid,

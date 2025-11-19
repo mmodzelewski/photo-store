@@ -1,6 +1,6 @@
 use rsa::{
-    pkcs8::{der::zeroize::Zeroizing, DecodePrivateKey, EncodePrivateKey, EncodePublicKey},
     RsaPrivateKey,
+    pkcs8::{DecodePrivateKey, EncodePrivateKey, EncodePublicKey, der::zeroize::Zeroizing},
 };
 
 use crate::error::{Error, Result};

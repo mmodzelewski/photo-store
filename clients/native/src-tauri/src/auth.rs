@@ -1,6 +1,6 @@
 pub mod handlers;
 
-use anyhow::Context;
+use anyhow::{Context, anyhow};
 use keyring::Entry;
 use rsa::{Oaep, RsaPrivateKey, RsaPublicKey};
 use serde::{Deserialize, Serialize};
@@ -55,7 +55,7 @@ impl AuthStore {
         let secret = serde_json::to_string(&self).context("Could not serialize auth context")?;
         entry
             .set_password(&secret)
-            .context("Could not update token")?;
+            .map_err(|err| anyhow!("Could not save token: {}", err))?;
         Ok(())
     }
 

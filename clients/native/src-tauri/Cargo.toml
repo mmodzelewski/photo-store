@@ -24,7 +24,7 @@ env_logger = "0.10.2"
 fast_image_resize = "2.7.3"
 image = "0.24.9"
 kamadak-exif = "0.5.5"
-keyring = "2.3.3"
+keyring = { version = "3.6.3", features = ["apple-native", "sync-secret-service", "windows-native"] }
 log = "0.4.21"
 reqwest = { workspace = true, features = ["multipart"] }
 rsa = { version = "0.9.6", features = ["sha2"] }

@@ -1,13 +1,14 @@
 pub mod handlers;
 
+use crate::{Error, Result};
 use anyhow::{Context, anyhow};
+use crypto::rsa::{from_der, to_der};
 use keyring::Entry;
+use log::trace;
 use rsa::{Oaep, RsaPrivateKey, RsaPublicKey};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use uuid::Uuid;
-
-use crate::{Error, Result};
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct AuthStore {
@@ -21,9 +22,12 @@ pub(crate) struct AuthCtx {
     private_key: RsaPrivateKey,
 }
 
+const TOKEN_ENTRY: &str = "dev.modzelewski.photo-store.token";
+const PRIVATE_KEY_ENTRY: &str = "dev.modzelewski.photo-store.private-key";
+
 impl AuthStore {
-    pub(crate) fn new(auth_token: String) -> AuthStore {
-        AuthStore {
+    pub(crate) fn new(auth_token: String) -> Self {
+        Self {
             auth_token,
             private_key: None,
         }
@@ -33,8 +37,8 @@ impl AuthStore {
         &self.auth_token
     }
 
-    pub(crate) fn with_private_key(&self, private_key: RsaPrivateKey) -> AuthStore {
-        AuthStore {
+    pub(crate) fn with_private_key(&self, private_key: RsaPrivateKey) -> Self {
+        Self {
             auth_token: self.auth_token.clone(),
             private_key: Some(private_key),
         }
@@ -42,26 +46,55 @@ impl AuthStore {
 
     pub(crate) fn load(user_id: &Uuid) -> Result<AuthStore> {
         let user_id_str = user_id.to_string();
-        let entry = AuthStore::get_token_entry(&user_id_str)?;
-        let secret = entry.get_password().context("Could not get token")?;
-        let auth_store =
-            serde_json::from_str(&secret).context("Could not deserialize auth context")?;
-        Ok(auth_store)
+        let token_entry = AuthStore::get_entry(TOKEN_ENTRY, &user_id_str)?;
+        let token = token_entry.get_password().context("Could not get token")?;
+
+        let pk_entry = AuthStore::get_entry(PRIVATE_KEY_ENTRY, &user_id_str)?;
+        let pk_der: Option<Vec<u8>> = match pk_entry.get_secret() {
+            Ok(pk_der) => Some(pk_der),
+            Err(keyring::Error::NoEntry) => None,
+            Err(err) => Err(anyhow!("Could not get private key from keyring: {}", err))?,
+        };
+
+        let private_key = if let Some(pk_der) = pk_der {
+            Some(
+                from_der(&pk_der)
+                    .map_err(|err| anyhow!("Could not convert private key from der : {}", err))?,
+            )
+        } else {
+            None
+        };
+
+        Ok(Self {
+            auth_token: token,
+            private_key,
+        })
     }
 
     pub(crate) fn save(&self, user_id: &Uuid) -> Result<()> {
         let user_id_str = user_id.to_string();
-        let entry = AuthStore::get_token_entry(&user_id_str)?;
-        let secret = serde_json::to_string(&self).context("Could not serialize auth context")?;
-        entry
-            .set_password(&secret)
-            .map_err(|err| anyhow!("Could not save token: {}", err))?;
+        let token_entry = AuthStore::get_entry(TOKEN_ENTRY, &user_id_str)?;
+        token_entry
+            .set_password(&self.auth_token)
+            .map_err(|err| anyhow!("Could not save auth token to keyring: {}", err))?;
+        trace!("Auth token saved");
+
+        if let Some(private_key) = &self.private_key {
+            let pk_entry = AuthStore::get_entry(PRIVATE_KEY_ENTRY, &user_id_str)?;
+            let pk_der = to_der(private_key)
+                .map_err(|err| anyhow!("Could not convert private key to der: {}", err))?;
+            pk_entry
+                .set_secret(&pk_der)
+                .map_err(|err| anyhow!("Could not save private key to keyring: {}", err))?;
+            trace!("Private key saved");
+        }
+
         Ok(())
     }
 
-    fn get_token_entry(user_id: &str) -> Result<Entry> {
-        let entry = Entry::new("dev.modzelewski.photo-store", user_id)
-            .context("Could not get token entry")?;
+    fn get_entry(key: &str, user_id: &str) -> Result<Entry> {
+        let entry = Entry::new(key, user_id)
+            .map_err(|err| anyhow!("Could not get keyring entry ({key}): {err}"))?;
         Ok(entry)
     }
 }

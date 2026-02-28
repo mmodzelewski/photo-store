@@ -7,23 +7,23 @@ edition = "2024"
 [dependencies]
 aes-gcm = "0.10.3"
 argon2 = "0.5.3"
-aws-config = "1.1.7"
-aws-sdk-s3 = "1.17.0"
-axum = { version = "0.8.1", features = ["multipart"] }
-base64ct = { version = "1.6.0", features = ["std"] }
-config = "0.13.4"
+aws-config = "1.8.14"
+aws-sdk-s3 = "1.124.0"
+axum = { version = "0.8.8", features = ["multipart"] }
+base64ct = { version = "1.8.3", features = ["std"] }
+config = "0.15.19"
 crypto = { version = "0.1.0", path = "../crates/crypto" }
 dtos = { version = "0.1.0", path = "../crates/dtos" }
-http = "1.1.0"
+http = "1.4.0"
 reqwest = { workspace = true, features = ["blocking"] }
-serde = { version = "1.0.197", features = ["derive"] }
-sqlx = { version = "0.8.3", features = ["runtime-tokio", "tls-rustls", "postgres", "uuid", "time", "migrate"] }
-thiserror = "1.0.57"
-time = { version = "0.3.36", features = ["parsing", "serde"] }
-tokio = { version = "1.36.0", features = ["full"] }
-toml = "0.8.10"
-tower-http = { version = "0.6.2", features = ["limit", "cors"] }
-tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
-url = "2.5.0"
+serde = { version = "1.0.228", features = ["derive"] }
+sqlx = { version = "0.8.6", features = ["runtime-tokio", "tls-rustls", "postgres", "uuid", "time", "migrate"] }
+thiserror = "2.0.18"
+time = { version = "0.3.47", features = ["parsing", "serde"] }
+tokio = { version = "1.49.0", features = ["full"] }
+toml = "1.0.3"
+tower-http = { version = "0.6.8", features = ["limit", "cors"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
+url = "2.5.8"
 uuid = { workspace = true }

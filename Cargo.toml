@@ -3,11 +3,11 @@ resolver = "2"
 
 members = [
     "backend",
-    "clients/native/src-tauri",
+    # "clients/native/src-tauri",
     "crates/crypto",
     "crates/dtos",
 ]
 
 [workspace.dependencies]
-reqwest = { version = "0.12.12", default-features = false, features = ["json", "rustls-tls", "charset", "http2"] }
-uuid = { version = "1.7.0", features = ["v4", "fast-rng"] }
+reqwest = { version = "0.13.2" }
+uuid = { version = "1.21.0", features = ["v4", "fast-rng"] }

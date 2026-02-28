@@ -16,34 +16,34 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [dependencies]
 aes-gcm = "0.10.3"
-anyhow = "1.0.93"
-base64ct = { version = "1.6.0", features = ["std"] }
+anyhow = "1.0.102"
+base64ct = { version = "1.8.3", features = ["std"] }
 crypto = { version = "0.1.0", path = "../../../crates/crypto" }
 dtos = { version = "0.1.0", path = "../../../crates/dtos" }
-env_logger = "0.10.2"
-fast_image_resize = "2.7.3"
-image = "0.24.9"
-kamadak-exif = "0.5.5"
+env_logger = "0.11.9"
+fast_image_resize = "6.0.0"
+image = "0.25.9"
+kamadak-exif = "0.6.1"
 keyring = { version = "3.6.3", features = ["apple-native", "sync-secret-service", "windows-native"] }
-log = "0.4.21"
+log = "0.4.29"
 reqwest = { workspace = true, features = ["multipart"] }
-rsa = { version = "0.9.6", features = ["sha2"] }
-rusqlite = { version = "0.32.1", features = ["bundled", "uuid", "time"] }
-rusqlite_migration = "1.1.0"
+rsa = { version = "0.9.10", features = ["sha2"] }
+rusqlite = { version = "0.38.0", features = ["bundled", "uuid", "time"] }
+rusqlite_migration = "2.4.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-sha2 = "0.10.8"
-strum = { version = "0.26.3", features = ["derive"] }
+sha2 = "0.10.9"
+strum = { version = "0.28.0", features = ["derive"] }
 tauri = { version = "2", features = ["protocol-asset"] }
-tauri-plugin-dialog = "2.4.0"
+tauri-plugin-dialog = "2.6.0"
 tauri-plugin-opener = "2"
-tauri-plugin-shell = "2.3.1"
-thiserror = "1.0.57"
-time = { version = "0.3.34", features = ["serde"] }
+tauri-plugin-shell = "2.3.5"
+thiserror = "2.0.18"
+time = { version = "0.3.47", features = ["serde"] }
 tiny_http = "0.12.0"
-url = "2.5.0"
+url = "2.5.8"
 uuid = { workspace = true }
-walkdir = "2.4.0"
+walkdir = "2.5.0"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

@@ -6,10 +6,10 @@ edition = "2024"
 [dependencies]
 aes-gcm = "0.10.3"
 argon2 = "0.5.3"
-base64ct = { version = "1.6.0", features = ["std"] }
-bytes = "1.5.0"
-rand = "0.8.5"
-rsa = { version = "0.9.6", features = ["serde","sha2"] }
-sha2 = "0.10.8"
-thiserror = "1.0.57"
+base64ct = { version = "1.8.3", features = ["std"] }
+bytes = "1.11.1"
+rand = "0.10.0"
+rsa = { version = "0.9.10", features = ["serde","sha2"] }
+sha2 = "0.10.9"
+thiserror = "2.0.18"
 uuid = { workspace = true }

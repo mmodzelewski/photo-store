@@ -24,6 +24,8 @@ pub struct Config {
     pub database: DatabaseConfig,
     #[serde(flatten)]
     pub storage: StorageConfig,
+    #[serde(default)]
+    pub registration_enabled: bool,
 }
 
 impl Config {

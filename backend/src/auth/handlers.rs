@@ -1,3 +1,7 @@
+use argon2::{
+    Argon2, PasswordHash, PasswordHasher, PasswordVerifier,
+    password_hash::{SaltString, rand_core::OsRng},
+};
 use axum::{
     Json,
     extract::{Query, State},
@@ -7,9 +11,42 @@ use serde::{Deserialize, Serialize};
 use tracing::debug;
 use uuid::Uuid;
 
-use crate::{AppState, ctx::Ctx, database::DbPool, error::Result, user::verify_user_password};
+use crate::{AppState, ctx::Ctx, database::DbPool, error::Result};
 
 use super::{error::Error, repository::AuthRepository};
+
+#[derive(serde::Deserialize)]
+pub(super) struct RegisterRequest {
+    pub username: String,
+    pub password: String,
+}
+
+#[derive(serde::Serialize)]
+pub(super) struct RegisterResponse {
+    pub user_id: String,
+}
+
+pub(super) async fn register(
+    State(state): State<AppState>,
+    Json(user): Json<RegisterRequest>,
+) -> Result<Json<RegisterResponse>> {
+    if !state.config.registration_enabled {
+        return Err(Error::RegistrationDisabled.into());
+    }
+
+    debug!("Registering user: {}", user.username);
+    let db = &state.db;
+
+    let user_id = Uuid::new_v4();
+    let password_hash = hash_password(&user.password)?;
+
+    AuthRepository::save_user_with_credentials(db, &user_id, &user.username, &password_hash)
+        .await?;
+
+    let user_id = user_id.to_string();
+    debug!("User registered: {}, {}", user.username, user_id);
+    Ok(Json(RegisterResponse { user_id }))
+}
 
 pub(super) async fn login(
     State(state): State<AppState>,
@@ -78,4 +115,29 @@ pub(super) async fn verify_token(db: &DbPool, token: &str) -> Result<Uuid> {
     AuthRepository::get_by_token(db, token)
         .await
         .map_err(|_| Error::InvalidAuthToken.into())
+}
+
+fn hash_password(password: &str) -> Result<String> {
+    let salt = SaltString::generate(&mut OsRng);
+    let argon2 = Argon2::default();
+    let hash = argon2
+        .hash_password(password.as_bytes(), &salt)
+        .map_err(|e| crate::error::Error::PasswordHashing(e.to_string()))?;
+    Ok(hash.to_string())
+}
+
+fn verify_password(password: &str, hash: &str) -> Result<()> {
+    let argon2 = Argon2::default();
+    let parsed_hash = PasswordHash::new(hash).unwrap();
+
+    argon2
+        .verify_password(password.as_bytes(), &parsed_hash)
+        .map_err(|e| crate::error::Error::PasswordHashing(e.to_string()))?;
+    Ok(())
+}
+
+async fn verify_user_password(db: &DbPool, username: &str, password: &str) -> Result<Uuid> {
+    let user = AuthRepository::get_by_username(db, username).await?;
+    verify_password(password, &user.password)?;
+    Ok(user.uuid)
 }

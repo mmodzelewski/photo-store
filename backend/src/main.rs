@@ -15,13 +15,11 @@ mod ctx;
 mod database;
 mod error;
 mod file;
-mod user;
 
 #[derive(Clone)]
 pub struct AppState {
     db: DbPool,
     config: Config,
-    google_auth: auth::google::GoogleAuth,
 }
 
 #[tokio::main]
@@ -32,12 +30,10 @@ async fn main() -> Result<()> {
 
     let config = Config::load()?;
     let pool = database::init_db(&config.database).await?;
-    let google_auth = auth::google::GoogleAuth::new();
 
     let state = AppState {
         db: pool,
         config,
-        google_auth,
     };
 
     let file_routes = file::routes(state.clone())
@@ -50,7 +46,6 @@ async fn main() -> Result<()> {
     let app = Router::new()
         .merge(file_routes)
         .nest("/auth", auth::routes(state.clone()))
-        .merge(user::routes(state.clone()))
         .layer(
             CorsLayer::new()
                 .allow_origin(Any)

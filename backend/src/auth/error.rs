@@ -8,4 +8,6 @@ pub enum Error {
     InvalidAuthHeader,
     #[error("Invalid auth token")]
     InvalidAuthToken,
+    #[error("Registration is disabled")]
+    RegistrationDisabled,
 }

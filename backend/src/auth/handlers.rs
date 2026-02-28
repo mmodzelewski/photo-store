@@ -1,3 +1,4 @@
+use crate::{AppState, ctx::Ctx, database::DbPool, error::Result, ulid::Id};
 use argon2::{
     Argon2, PasswordHash, PasswordHasher, PasswordVerifier,
     password_hash::{SaltString, rand_core::OsRng},
@@ -10,8 +11,6 @@ use dtos::auth::{LoginRequest, LoginResponse, PrivateKeyResponse, SaveRsaKeysReq
 use serde::{Deserialize, Serialize};
 use tracing::debug;
 use uuid::Uuid;
-
-use crate::{AppState, ctx::Ctx, database::DbPool, error::Result};
 
 use super::{error::Error, repository::AuthRepository};
 
@@ -37,7 +36,7 @@ pub(super) async fn register(
     debug!("Registering user: {}", user.username);
     let db = &state.db;
 
-    let user_id = Uuid::new_v4();
+    let user_id = Id::new();
     let password_hash = hash_password(&user.password)?;
 
     AuthRepository::save_user_with_credentials(db, &user_id, &user.username, &password_hash)
@@ -59,7 +58,7 @@ pub(super) async fn login(
     AuthRepository::save_auth_token(db, &user_id, &auth_token).await?;
 
     Ok(Json(LoginResponse {
-        user_id,
+        user_id: user_id.into(),
         auth_token,
     }))
 }
@@ -111,7 +110,7 @@ pub(super) async fn login_desktop(
     Ok(Json(RedirectUri { redirect_uri }))
 }
 
-pub(super) async fn verify_token(db: &DbPool, token: &str) -> Result<Uuid> {
+pub(super) async fn verify_token(db: &DbPool, token: &str) -> Result<Id> {
     AuthRepository::get_by_token(db, token)
         .await
         .map_err(|_| Error::InvalidAuthToken.into())
@@ -136,8 +135,8 @@ fn verify_password(password: &str, hash: &str) -> Result<()> {
     Ok(())
 }
 
-async fn verify_user_password(db: &DbPool, username: &str, password: &str) -> Result<Uuid> {
+async fn verify_user_password(db: &DbPool, username: &str, password: &str) -> Result<Id> {
     let user = AuthRepository::get_by_username(db, username).await?;
     verify_password(password, &user.password)?;
-    Ok(user.uuid)
+    Ok(user.id)
 }

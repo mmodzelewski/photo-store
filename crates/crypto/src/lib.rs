@@ -7,7 +7,7 @@ use base64ct::{Base64, Encoding};
 use bytes::Bytes;
 use rand::rngs::OsRng;
 use sha2::{Digest, Sha256};
-use uuid::Uuid;
+use ulid::Ulid;
 
 use error::Error;
 
@@ -15,7 +15,7 @@ pub mod error;
 pub mod rsa;
 
 pub trait CryptoFileDesc {
-    fn uuid(&self) -> Uuid;
+    fn id(&self) -> Ulid;
     fn sha256(&self) -> &str;
 }
 
@@ -25,7 +25,7 @@ pub fn encrypt_data<File: CryptoFileDesc>(
     data: Bytes,
 ) -> error::Result<(Vec<u8>, String)> {
     let cipher = Aes256Gcm::new(encryption_key);
-    let nonce = generate_nonce_from_uuid(file.uuid());
+    let nonce = generate_nonce_from_id(file.id());
 
     let encrypted_data = cipher.encrypt(&nonce, data.as_ref()).unwrap();
     let data_hash = hash(&encrypted_data);
@@ -33,12 +33,12 @@ pub fn encrypt_data<File: CryptoFileDesc>(
 }
 
 pub fn decrypt_data(
-    file_uuid: Uuid,
+    file_id: Ulid,
     encryption_key: &Key<Aes256Gcm>,
     encrypted_data: Bytes,
 ) -> error::Result<Vec<u8>> {
     let cipher = Aes256Gcm::new(encryption_key);
-    let nonce = generate_nonce_from_uuid(file_uuid);
+    let nonce = generate_nonce_from_id(file_id);
 
     cipher
         .decrypt(&nonce, encrypted_data.as_ref())
@@ -72,12 +72,12 @@ pub fn encrypt(data: &[u8], public_key: &RsaPublicKey) -> Vec<u8> {
         .expect("failed to encrypt")
 }
 
-pub fn verify_data_hash(uuid: Uuid, sha256: &str, data: &Bytes) -> error::Result<()> {
+pub fn verify_data_hash(id: Ulid, sha256: &str, data: &Bytes) -> error::Result<()> {
     let data_hash = hash(data);
     if data_hash != sha256 {
         return Err(Error::EncryptionError(format!(
             "File {} hash mismatch, expected {}, got {}",
-            uuid, sha256, data_hash
+            id, sha256, data_hash
         )));
     }
     Ok(())
@@ -89,9 +89,9 @@ fn hash(data: &[u8]) -> String {
     Base64::encode_string(&hash)
 }
 
-fn generate_nonce_from_uuid(uuid: Uuid) -> Nonce<U12> {
-    let uuid_bytes = uuid.as_bytes();
-    let hash = Sha256::digest(uuid_bytes);
+fn generate_nonce_from_id(id: Ulid) -> Nonce<U12> {
+    let id_bytes = id.to_bytes();
+    let hash = Sha256::digest(&id_bytes);
     let nonce_bytes: [u8; 12] = hash[0..12].try_into().unwrap();
     Nonce::from(nonce_bytes)
 }
@@ -112,14 +112,14 @@ pub fn decrypt_data_raw(
         .map_err(|e| Error::EncryptionError(format!("Could not decrypt data, error: {}", e)))
 }
 
-pub fn generate_cipher(user_id: &Uuid, passphrase: &str) -> error::Result<(Aes256Gcm, Nonce<U12>)> {
-    let salt = user_id.as_bytes();
+pub fn generate_cipher(user_id: &Ulid, passphrase: &str) -> error::Result<(Aes256Gcm, Nonce<U12>)> {
+    let salt = user_id.to_bytes();
     let nonce_bytes: [u8; 12] = salt[4..16].try_into().unwrap();
     let nonce = Nonce::from(nonce_bytes);
 
     let mut enc_key = [0u8; 32];
     Argon2::default()
-        .hash_password_into(passphrase.as_bytes(), salt, &mut enc_key)
+        .hash_password_into(passphrase.as_bytes(), &salt, &mut enc_key)
         .unwrap();
     let cipher = Aes256Gcm::new_from_slice(&enc_key).unwrap();
 

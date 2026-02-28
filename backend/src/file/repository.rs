@@ -1,21 +1,21 @@
 use time::OffsetDateTime;
-use uuid::Uuid;
 
 use crate::database::DbPool;
 use crate::error::Result;
+use crate::ulid::Id;
 
 use super::{File, FileState};
 
 pub(super) trait FileRepository {
-    async fn exists(&self, uuid: &Uuid) -> Result<bool>;
-    async fn find(&self, uuid: &Uuid) -> Result<Option<File>>;
+    async fn exists(&self, id: &Id) -> Result<bool>;
+    async fn find(&self, id: &Id) -> Result<Option<File>>;
     async fn find_synced_files(
         &self,
-        user_id: &Uuid,
+        user_id: &Id,
         from: Option<OffsetDateTime>,
     ) -> Result<Vec<File>>;
     async fn save(&mut self, file: &File) -> Result<()>;
-    async fn update_state(&self, file_id: &Uuid, state: FileState) -> Result<()>;
+    async fn update_state(&self, file_id: &Id, state: FileState) -> Result<()>;
 }
 
 pub(super) struct DbFileRepository {
@@ -23,8 +23,8 @@ pub(super) struct DbFileRepository {
 }
 
 impl FileRepository for DbFileRepository {
-    async fn exists(&self, uuid: &Uuid) -> Result<bool> {
-        let count = sqlx::query!("SELECT count(1) FROM file WHERE uuid = $1", uuid)
+    async fn exists(&self, id: &Id) -> Result<bool> {
+        let count = sqlx::query!("SELECT count(1) FROM file WHERE id = $1", id as &Id)
             .fetch_one(&self.db)
             .await
             .map_err(|e| {
@@ -34,16 +34,16 @@ impl FileRepository for DbFileRepository {
         Ok(res)
     }
 
-    async fn find(&self, uuid: &Uuid) -> Result<Option<File>> {
+    async fn find(&self, id: &Id) -> Result<Option<File>> {
         let file = sqlx::query_as!(
             File,
             r#"SELECT
-            path, name, state as "state: _", uuid,
+            id as "id: Id", path, name, state as "state: _",
             f.created_at, added_at, sha256,
-            owner_id, uploader_id, enc_key
+            owner_id as "owner_id: Id", uploader_id as "uploader_id: Id", enc_key
             FROM file f
-            WHERE uuid = $1"#,
-            uuid
+            WHERE id = $1"#,
+            id as &Id
         )
         .fetch_optional(&self.db)
         .await
@@ -54,20 +54,20 @@ impl FileRepository for DbFileRepository {
 
     async fn find_synced_files(
         &self,
-        user_id: &Uuid,
+        user_id: &Id,
         from: Option<OffsetDateTime>,
     ) -> Result<Vec<File>> {
         let files = sqlx::query_as!(
             File,
             r#"SELECT
-            path, name, state as "state: _", uuid,
+            id as "id: Id", path, name, state as "state: _",
             f.created_at, added_at, sha256,
-            owner_id, uploader_id, enc_key
+            owner_id as "owner_id: Id", uploader_id as "uploader_id: Id", enc_key
             FROM file f
             WHERE owner_id = $1
             AND state = $2
             AND ($3::timestamptz IS NULL OR added_at >= $3)"#,
-            user_id,
+            user_id as &Id,
             FileState::Synced as _,
             from,
         )
@@ -83,16 +83,16 @@ impl FileRepository for DbFileRepository {
     async fn save(&mut self, file: &File) -> Result<()> {
         let query = sqlx::query!(
             r#"INSERT INTO file (
-                path, name, state, uuid, created_at, sha256, owner_id, uploader_id, enc_key 
+                id, path, name, state, created_at, sha256, owner_id, uploader_id, enc_key
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"#,
+            &file.id as &Id,
             file.path,
             file.name,
             file.state as _,
-            file.uuid,
             file.created_at,
             file.sha256,
-            file.owner_id,
-            file.uploader_id,
+            &file.owner_id as &Id,
+            &file.uploader_id as &Id,
             file.enc_key,
         );
 
@@ -104,11 +104,11 @@ impl FileRepository for DbFileRepository {
         Ok(())
     }
 
-    async fn update_state(&self, file_id: &Uuid, state: FileState) -> Result<()> {
+    async fn update_state(&self, file_id: &Id, state: FileState) -> Result<()> {
         let query = sqlx::query!(
-            "UPDATE file SET state = $1 WHERE uuid = $2",
+            "UPDATE file SET state = $1 WHERE id = $2",
             state as _,
-            file_id
+            file_id as &Id
         );
 
         query.execute(&self.db).await.map_err(|e| {
@@ -134,18 +134,18 @@ pub mod tests {
     }
 
     impl FileRepository for InMemoryFileRepository {
-        async fn exists(&self, uuid: &Uuid) -> Result<bool> {
-            let exists = self.files.iter().any(|f| f.uuid == *uuid);
+        async fn exists(&self, id: &Id) -> Result<bool> {
+            let exists = self.files.iter().any(|f| f.id == *id);
             Ok(exists)
         }
 
-        async fn find(&self, _uuid: &Uuid) -> Result<Option<File>> {
+        async fn find(&self, _id: &Id) -> Result<Option<File>> {
             todo!()
         }
 
         async fn find_synced_files(
             &self,
-            user_id: &Uuid,
+            user_id: &Id,
             from: Option<OffsetDateTime>,
         ) -> Result<Vec<File>> {
             Ok(self
@@ -163,7 +163,7 @@ pub mod tests {
             Ok(())
         }
 
-        async fn update_state(&self, _file_id: &Uuid, _state: FileState) -> Result<()> {
+        async fn update_state(&self, _file_id: &Id, _state: FileState) -> Result<()> {
             todo!()
         }
     }

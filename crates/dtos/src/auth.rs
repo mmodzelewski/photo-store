@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+use ulid::Ulid;
 
 #[derive(Serialize, Deserialize)]
 pub struct SaveRsaKeysRequest {
@@ -20,6 +20,6 @@ pub struct LoginRequest {
 
 #[derive(Serialize, Deserialize)]
 pub struct LoginResponse {
-    pub user_id: Uuid,
+    pub user_id: Ulid,
     pub auth_token: String,
 }

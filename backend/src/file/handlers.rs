@@ -7,17 +7,16 @@ use axum::{
     Json,
     extract::{Multipart, Path, State, multipart::Field},
 };
+use dtos::file::{FileMetadata, FilesUploadRequest};
 use http::header;
 use serde::{Deserialize, Deserializer, de};
 use time::OffsetDateTime;
 use tracing::{debug, error, warn};
-use uuid::Uuid;
-
-use dtos::file::{FileMetadata, FilesUploadRequest};
 
 use super::{File, repository::DbFileRepository};
 use crate::config::StorageConfig;
 use crate::file::repository::FileRepository;
+use crate::ulid::Id;
 use crate::{
     AppState,
     ctx::Ctx,
@@ -48,7 +47,8 @@ async fn upload_files_metadata_internal(
     ctx: Ctx,
     request: FilesUploadRequest,
 ) -> Result<()> {
-    if request.user_id != ctx.user_id() {
+    let request_user_id: Id = request.user_id.into();
+    if request_user_id != ctx.user_id() {
         return Err(Error::FileUpload(format!(
             "User {} is trying to upload files for user {}",
             ctx.user_id(),
@@ -57,22 +57,23 @@ async fn upload_files_metadata_internal(
     }
 
     for item in request.files {
-        let exists = repo.exists(&item.uuid).await?;
+        let file_id: Id = item.id.into();
+        let exists = repo.exists(&file_id).await?;
 
         if exists {
-            warn!("File {:?} already exists, skipping upload", &item.uuid);
+            warn!("File {} already exists, skipping upload", &item.id);
             continue;
         }
 
         let file = File {
+            id: file_id,
             path: item.path.clone(),
             name: item.path.split('/').next_back().unwrap().to_string(),
             state: FileState::New,
-            uuid: item.uuid,
             created_at: item.date,
             added_at: OffsetDateTime::now_utc(),
             sha256: item.sha256.clone(),
-            owner_id: request.user_id,
+            owner_id: request_user_id,
             uploader_id: ctx.user_id(),
             enc_key: item.key.clone(),
         };
@@ -125,7 +126,7 @@ pub(super) async fn get_files_metadata(
         .into_iter()
         .map(|file| FileMetadata {
             path: file.path,
-            uuid: file.uuid,
+            id: file.id.into(),
             date: file.created_at,
             sha256: file.sha256,
             key: file.enc_key,
@@ -138,11 +139,11 @@ pub(super) async fn get_files_metadata(
 pub(super) async fn upload_file(
     State(state): State<AppState>,
     ctx: Ctx,
-    Path(file_id): Path<Uuid>,
+    Path(file_id): Path<Id>,
     mut multipart: Multipart,
 ) -> Result<()> {
     debug!(
-        "Uploading file: {:?}. Authenticated user {}",
+        "Uploading file: {}. Authenticated user {}",
         file_id,
         ctx.user_id()
     );
@@ -152,7 +153,7 @@ pub(super) async fn upload_file(
     let file = repo
         .find(&file_id)
         .await?
-        .ok_or_else(|| Error::FileUpload(format!("Metadata for file {:?} not found", &file_id)))?;
+        .ok_or_else(|| Error::FileUpload(format!("Metadata for file {} not found", &file_id)))?;
     debug!("Found file: {:?}", file);
 
     if file.uploader_id != ctx.user_id() {
@@ -247,7 +248,7 @@ async fn upload(
     sha256: &str,
     config: &StorageConfig,
 ) -> Result<()> {
-    debug!("Uploading file {}/{}", file.uuid, field_name);
+    debug!("Uploading file {}/{}", file.id, field_name);
 
     let aws_config = aws_config::defaults(BehaviorVersion::latest())
         .region("auto")
@@ -261,18 +262,18 @@ async fn upload(
         .content_type()
         .ok_or(Error::FileUpload(format!(
             "Missing content type for file {}",
-            file.uuid
+            file.id
         )))?
         .to_owned();
 
     let data = field.bytes().await.map_err(|e| {
-        error!("Could not read file {} bytes {}", file.uuid, e);
+        error!("Could not read file {} bytes {}", file.id, e);
         Error::FileUpload(format!("Could not read field bytes {}", e))
     })?;
 
-    crypto::verify_data_hash(file.uuid, sha256, &data)?;
+    crypto::verify_data_hash(file.id.into(), sha256, &data)?;
 
-    let file_key = format!("files/{}/{}/{}", file.owner_id, file.uuid, field_name);
+    let file_key = format!("files/{}/{}/{}", file.owner_id, file.id, field_name);
     let result = client
         .put_object()
         .bucket(&config.bucket_name)
@@ -285,7 +286,7 @@ async fn upload(
         .map_err(|e| {
             let message = format!(
                 "Could not upload file {}/{}, error: {}",
-                file.uuid, field_name, e
+                file.id, field_name, e
             );
             error!(message);
             Error::FileUpload(message)
@@ -293,7 +294,7 @@ async fn upload(
 
     debug!(
         "File {}/{} upload result: {:?}",
-        file.uuid, field_name, result
+        file.id, field_name, result
     );
     Ok(())
 }
@@ -306,11 +307,11 @@ pub struct FileDownloadParams {
 pub(super) async fn download_file(
     State(state): State<AppState>,
     ctx: Ctx,
-    Path(file_id): Path<Uuid>,
+    Path(file_id): Path<Id>,
     Query(params): Query<FileDownloadParams>,
 ) -> Result<(HeaderMap, Bytes)> {
     debug!(
-        "Downloading file: {:?} with variant {:?}. Authenticated user {}",
+        "Downloading file: {} with variant {:?}. Authenticated user {}",
         file_id,
         params.variant,
         ctx.user_id()
@@ -337,7 +338,7 @@ pub(super) async fn download_file(
     let file_key = format!(
         "files/{}/{}/{}",
         file.owner_id,
-        file.uuid,
+        file.id,
         params.variant.unwrap_or(ORIGINAL.to_owned())
     );
 
@@ -392,11 +393,11 @@ mod tests {
         // given
         let mut repo = InMemoryFileRepository::new();
         let request = FilesUploadRequest {
-            user_id: Uuid::new_v4(),
+            user_id: ulid::Ulid::new(),
             files: vec![],
         };
 
-        let ctx = Ctx::new(Uuid::new_v4());
+        let ctx = Ctx::new(Id::new());
 
         // when
         let result = upload_files_metadata_internal(&mut repo, ctx, request).await;
@@ -415,19 +416,20 @@ mod tests {
     async fn should_save_metadata_in_repository() {
         // given
         let mut repo = InMemoryFileRepository::new();
-        let user_id = Uuid::new_v4();
+        let user_id = ulid::Ulid::new();
+        let file_id = ulid::Ulid::new();
         let request = FilesUploadRequest {
             user_id,
             files: vec![FileMetadata {
                 path: "/home/pics/test.jpg".to_string(),
-                uuid: Uuid::new_v4(),
+                id: file_id,
                 date: OffsetDateTime::now_utc(),
                 sha256: "sha256".to_string(),
                 key: "key".to_string(),
             }],
         };
         let metadata = request.files[0].clone();
-        let ctx = Ctx::new(user_id);
+        let ctx = Ctx::new(user_id.into());
 
         // when
         upload_files_metadata_internal(&mut repo, ctx, request)
@@ -439,11 +441,11 @@ mod tests {
         assert_eq!(file.path, "/home/pics/test.jpg");
         assert_eq!(file.name, "test.jpg");
         assert!(matches!(file.state, FileState::New));
-        assert_eq!(file.uuid, metadata.uuid);
+        assert_eq!(file.id, file_id.into());
         assert_eq!(file.created_at, metadata.date);
         assert_eq!(file.sha256, "sha256");
-        assert_eq!(file.owner_id, user_id);
-        assert_eq!(file.uploader_id, user_id);
+        assert_eq!(file.owner_id, user_id.into());
+        assert_eq!(file.uploader_id, user_id.into());
         assert_eq!(file.enc_key, "key");
     }
 }

@@ -1,7 +1,6 @@
-use uuid::Uuid;
-
 use crate::database::DbPool;
 use crate::error::{Error, Result};
+use crate::ulid::Id;
 
 #[derive(Debug, sqlx::Type)]
 #[sqlx(type_name = "provider")]
@@ -10,19 +9,21 @@ pub(super) enum AccountProvider {
 }
 
 pub(super) struct User {
-    pub uuid: Uuid,
+    pub id: Id,
     pub password: String,
 }
 
 pub(super) struct AuthRepository;
 
 impl AuthRepository {
-    pub async fn save_auth_token(db: &DbPool, user_id: &Uuid, auth_token: &str) -> Result<()> {
+    pub async fn save_auth_token(db: &DbPool, user_id: &Id, auth_token: &str) -> Result<()> {
+        let token_id = Id::new();
         let query = sqlx::query!(
             r#"INSERT INTO auth_token (
-                user_id, token
-            ) VALUES ($1, $2)"#,
-            user_id,
+                id, user_id, token
+            ) VALUES ($1, $2, $3)"#,
+            &token_id as &Id,
+            user_id as &Id,
             auth_token,
         );
 
@@ -33,9 +34,9 @@ impl AuthRepository {
         Ok(())
     }
 
-    pub async fn get_by_token(db: &DbPool, auth_token: &str) -> Result<Uuid> {
+    pub async fn get_by_token(db: &DbPool, auth_token: &str) -> Result<Id> {
         let query = sqlx::query!(
-            r#"SELECT user_id FROM auth_token WHERE token = $1"#,
+            r#"SELECT user_id as "user_id: Id" FROM auth_token WHERE token = $1"#,
             auth_token,
         );
 
@@ -48,15 +49,17 @@ impl AuthRepository {
 
     pub(crate) async fn save_keys(
         db: &sqlx::Pool<sqlx::Postgres>,
-        user_id: &Uuid,
+        user_id: &Id,
         private_key: &str,
         public_key: &str,
     ) -> Result<()> {
+        let keys_id = Id::new();
         let query = sqlx::query!(
             r#"INSERT INTO user_keys (
-                user_id, private_key, public_key
-            ) VALUES ($1, $2, $3)"#,
-            user_id,
+                id, user_id, private_key, public_key
+            ) VALUES ($1, $2, $3, $4)"#,
+            &keys_id as &Id,
+            user_id as &Id,
             private_key,
             public_key,
         );
@@ -71,11 +74,11 @@ impl AuthRepository {
 
     pub(crate) async fn get_private_key(
         db: &sqlx::Pool<sqlx::Postgres>,
-        user_id: &Uuid,
+        user_id: &Id,
     ) -> Result<Option<String>> {
         let query = sqlx::query!(
             r#"SELECT private_key FROM user_keys where user_id = $1"#,
-            user_id
+            user_id as &Id
         );
         let result = query
             .fetch_optional(db)
@@ -88,7 +91,7 @@ impl AuthRepository {
 
     pub async fn save_user_with_credentials(
         db: &DbPool,
-        user_id: &Uuid,
+        user_id: &Id,
         username: &str,
         password_hash: &str,
     ) -> Result<()> {
@@ -98,8 +101,8 @@ impl AuthRepository {
             .map_err(|e| Error::Database(format!("Could not start transaction {}", e)))?;
 
         let query = sqlx::query!(
-            r#"INSERT INTO app_user (uuid, name) VALUES ($1, $2)"#,
-            user_id,
+            r#"INSERT INTO app_user (id, name) VALUES ($1, $2)"#,
+            user_id as &Id,
             username,
         );
         query
@@ -107,11 +110,13 @@ impl AuthRepository {
             .await
             .map_err(|e| Error::Database(format!("Could not save user {}", e)))?;
 
+        let account_id = Id::new();
         let query = sqlx::query!(
             r#"INSERT INTO user_account (
-                user_id, account_id, password, provider
-            ) VALUES ($1, $2, $3, $4)"#,
-            user_id,
+                id, user_id, account_id, password, provider
+            ) VALUES ($1, $2, $3, $4, $5)"#,
+            &account_id as &Id,
+            user_id as &Id,
             username,
             password_hash,
             AccountProvider::Credentials as _,
@@ -131,7 +136,7 @@ impl AuthRepository {
 
     pub async fn get_by_username(db: &DbPool, username: &str) -> Result<User> {
         let query = sqlx::query!(
-            r#"SELECT user_id, password FROM user_account where account_id = $1 and provider = $2"#,
+            r#"SELECT user_id as "user_id: Id", password FROM user_account where account_id = $1 and provider = $2"#,
             username,
             AccountProvider::Credentials as _
         );
@@ -142,7 +147,7 @@ impl AuthRepository {
             .map_err(|e| Error::Database(format!("Could not get user {}", e)))?;
 
         Ok(User {
-            uuid: user.user_id,
+            id: user.user_id,
             password: user
                 .password
                 .expect("Password must be set for credentials user"),

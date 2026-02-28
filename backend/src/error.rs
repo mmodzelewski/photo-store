@@ -12,7 +12,7 @@ pub enum Error {
     #[error("File download error: {0}")]
     FileDownload(String),
     #[error("File not found: {0}")]
-    FileNotFound(uuid::Uuid),
+    FileNotFound(crate::ulid::Id),
     #[error("Unauthorized")]
     Unauthorized,
     #[error("Database error: {0}")]

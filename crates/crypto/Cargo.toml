@@ -8,8 +8,8 @@ aes-gcm = "0.10.3"
 argon2 = "0.5.3"
 base64ct = { version = "1.8.3", features = ["std"] }
 bytes = "1.11.1"
-rand = "0.10.0"
+rand = "0.8"
 rsa = { version = "0.9.10", features = ["serde","sha2"] }
 sha2 = "0.10.9"
 thiserror = "2.0.18"
-uuid = { workspace = true }
+ulid = { workspace = true }

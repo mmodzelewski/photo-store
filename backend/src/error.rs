@@ -7,38 +7,47 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum Error {
-    #[error("File upload error: {0}")]
-    FileUpload(String),
-    #[error("File download error: {0}")]
-    FileDownload(String),
-    #[error("Storage error: {0}")]
-    Storage(String),
-    #[error("File not found: {0}")]
-    FileNotFound(crate::ulid::Id),
-    #[error("Unauthorized")]
-    Unauthorized,
-    #[error("Database error: {0}")]
-    Database(String),
-    #[error("Database migration error: {0}")]
-    DbMigration(String),
-    #[error("Auth error {0}")]
+    #[error("File upload error")]
+    FileUpload,
+    #[error("File download error")]
+    FileDownload,
+    #[error("Storage error")]
+    Storage,
+    #[error("File not found")]
+    FileNotFound,
+    #[error("Forbidden")]
+    Forbidden,
+    #[error("Database error")]
+    Database,
+    #[error("Database migration error")]
+    DbMigration,
+    #[error("Auth error: {0}")]
     Auth(#[from] crate::auth::error::Error),
-    #[error("Password hashing error: {0}")]
-    PasswordHashing(String),
-    #[error("Configuration error: {0}")]
-    Configuration(String),
-    #[error("Crypto error: {0}")]
+    #[error("Password hashing error")]
+    PasswordHashing,
+    #[error("Configuration error")]
+    Configuration,
+    #[error("Crypto error")]
     Crypto(#[from] crypto::error::Error),
 }
 
 impl IntoResponse for Error {
     fn into_response(self) -> Response {
-        println!("{:?}", self);
+        let (status, message) = match &self {
+            Error::Auth(_) => (StatusCode::UNAUTHORIZED, "Unauthorized"),
+            Error::Forbidden => (StatusCode::FORBIDDEN, "Forbidden"),
+            Error::FileNotFound => (StatusCode::NOT_FOUND, "Not found"),
+            Error::FileUpload | Error::FileDownload => (StatusCode::BAD_REQUEST, "Bad request"),
+            Error::Storage
+            | Error::Database
+            | Error::DbMigration
+            | Error::PasswordHashing
+            | Error::Configuration
+            | Error::Crypto(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error"),
+        };
 
-        if let Error::Auth(_) = self {
-            return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response();
-        }
+        tracing::error!(status = status.as_u16(), error = %self, "Request failed");
 
-        (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error").into_response()
+        (status, message).into_response()
     }
 }

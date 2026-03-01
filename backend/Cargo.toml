@@ -23,7 +23,7 @@ thiserror = "2.0.18"
 time = { version = "0.3.47", features = ["parsing", "serde"] }
 tokio = { version = "1.49.0", features = ["full"] }
 toml = "1.0.3"
-tower-http = { version = "0.6.8", features = ["limit", "cors"] }
+tower-http = { version = "0.6.8", features = ["limit", "cors", "request-id", "trace", "util"] }
 ulid = { workspace = true }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }

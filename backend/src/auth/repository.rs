@@ -6,6 +6,7 @@ use crate::entity::{
 use crate::error::{Error, Result};
 use crate::ulid::Id;
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set, TransactionTrait};
+use tracing::error;
 
 pub(super) struct User {
     pub id: Id,
@@ -25,7 +26,10 @@ impl AuthRepository {
         }
         .insert(db)
         .await
-        .map_err(|e| Error::Database(format!("Could not save auth token: {}", e)))?;
+        .map_err(|e| {
+            error!(error = %e, "Could not save auth token");
+            Error::Database
+        })?;
 
         Ok(())
     }
@@ -35,8 +39,14 @@ impl AuthRepository {
             .filter(auth_tokens::Column::Token.eq(auth_token))
             .one(db)
             .await
-            .map_err(|e| Error::Database(format!("Could not get auth token: {}", e)))?
-            .ok_or_else(|| Error::Database("Auth token not found".to_string()))?;
+            .map_err(|e| {
+                error!(error = %e, "Could not query auth token");
+                Error::Database
+            })?
+            .ok_or_else(|| {
+                error!("Auth token not found");
+                Error::Database
+            })?;
 
         Ok(Id::from(row.user_id))
     }
@@ -57,7 +67,10 @@ impl AuthRepository {
         }
         .insert(db)
         .await
-        .map_err(|e| Error::Database(format!("Could not save user keys: {}", e)))?;
+        .map_err(|e| {
+            error!(error = %e, "Could not save user keys");
+            Error::Database
+        })?;
 
         Ok(())
     }
@@ -67,7 +80,10 @@ impl AuthRepository {
             .filter(user_keys::Column::UserId.eq(uuid::Uuid::from(*user_id)))
             .one(db)
             .await
-            .map_err(|e| Error::Database(format!("Could not get private_key {}", e)))?
+            .map_err(|e| {
+                error!(error = %e, "Could not get private key");
+                Error::Database
+            })?
             .map(|row| row.private_key);
 
         Ok(result)
@@ -108,7 +124,10 @@ impl AuthRepository {
             })
         })
         .await
-        .map_err(|e| Error::Database(format!("Could not save user with credentials: {}", e)))?;
+        .map_err(|e| {
+            error!(error = %e, "Could not save user with credentials");
+            Error::Database
+        })?;
 
         Ok(())
     }
@@ -119,8 +138,14 @@ impl AuthRepository {
             .filter(user_accounts::Column::Provider.eq(Provider::Credentials))
             .one(db)
             .await
-            .map_err(|e| Error::Database(format!("Could not get user {}", e)))?
-            .ok_or_else(|| Error::Database("User not found".to_string()))?;
+            .map_err(|e| {
+                error!(error = %e, "Could not query user account");
+                Error::Database
+            })?
+            .ok_or_else(|| {
+                error!("User account not found");
+                Error::Database
+            })?;
 
         Ok(User {
             id: Id::from(account.user_id),

@@ -1,6 +1,7 @@
 use sea_orm::sea_query::Expr;
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
 use time::OffsetDateTime;
+use tracing::error;
 
 use crate::database::DbPool;
 use crate::entity::files;
@@ -33,7 +34,8 @@ impl FileRepository for DbFileRepository {
             .one(&self.db)
             .await
             .map_err(|e| {
-                crate::error::Error::Database(format!("Could not check if file exists {}", e))
+                error!(error = %e, "Could not check if file exists");
+                crate::error::Error::Database
             })?;
         Ok(result.is_some())
     }
@@ -42,7 +44,10 @@ impl FileRepository for DbFileRepository {
         let file = Files::find_by_id(uuid::Uuid::from(*id))
             .one(&self.db)
             .await
-            .map_err(|e| crate::error::Error::Database(format!("Could not get file {}", e)))?
+            .map_err(|e| {
+                error!(error = %e, "Could not get file");
+                crate::error::Error::Database
+            })?
             .map(File::from);
 
         Ok(file)
@@ -65,7 +70,8 @@ impl FileRepository for DbFileRepository {
             .all(&self.db)
             .await
             .map_err(|e| {
-                crate::error::Error::Database(format!("Could not get synced files for user {}", e))
+                error!(error = %e, "Could not get synced files");
+                crate::error::Error::Database
             })?
             .into_iter()
             .map(File::from)
@@ -90,7 +96,10 @@ impl FileRepository for DbFileRepository {
         }
         .insert(&self.db)
         .await
-        .map_err(|e| crate::error::Error::Database(format!("Could not save file {}", e)))?;
+        .map_err(|e| {
+            error!(error = %e, "Could not save file");
+            crate::error::Error::Database
+        })?;
 
         Ok(())
     }
@@ -103,10 +112,8 @@ impl FileRepository for DbFileRepository {
             .exec(&self.db)
             .await
             .map_err(|e| {
-                crate::error::Error::Database(format!(
-                    "Could not update file {} state {}",
-                    file_id, e
-                ))
+                error!(%file_id, error = %e, "Could not update file state");
+                crate::error::Error::Database
             })?;
 
         Ok(())

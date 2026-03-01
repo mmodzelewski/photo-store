@@ -27,12 +27,7 @@ pub(super) async fn upload_files_metadata(
     ctx: Ctx,
     Json(request): Json<FilesUploadRequest>,
 ) -> Result<()> {
-    debug!(
-        "Uploading files metadata. Received {} items for user {}. Authenticated user {}",
-        request.files.len(),
-        request.user_id,
-        ctx.user_id(),
-    );
+    debug!(count = request.files.len(), "Uploading files metadata",);
 
     let mut repo = DbFileRepository { db: state.db };
     upload_files_metadata_internal(&mut repo, ctx, request).await?;
@@ -47,11 +42,8 @@ async fn upload_files_metadata_internal(
 ) -> Result<()> {
     let request_user_id: Id = request.user_id.into();
     if request_user_id != ctx.user_id() {
-        return Err(Error::FileUpload(format!(
-            "User {} is trying to upload files for user {}",
-            ctx.user_id(),
-            request.user_id
-        )));
+        error!("Upload authorization mismatch");
+        return Err(Error::Forbidden);
     }
 
     for item in request.files {
@@ -59,7 +51,7 @@ async fn upload_files_metadata_internal(
         let exists = repo.exists(&file_id).await?;
 
         if exists {
-            warn!("File {} already exists, skipping upload", &item.id);
+            warn!(%file_id, "File already exists, skipping upload");
             continue;
         }
 
@@ -76,7 +68,7 @@ async fn upload_files_metadata_internal(
             enc_key: item.key.clone(),
         };
 
-        debug!("Saving file {:?}", &file);
+        debug!("Saving file metadata");
         repo.save(&file).await?;
     }
 
@@ -111,11 +103,7 @@ pub(super) async fn get_files_metadata(
     Query(params): Query<DownloadParams>,
     ctx: Ctx,
 ) -> Result<Json<Vec<FileMetadata>>> {
-    debug!(
-        "Getting files metadata for user {}. Params {:?}",
-        ctx.user_id(),
-        params
-    );
+    debug!("Getting files metadata");
 
     let repo = DbFileRepository { db: state.db };
     let files = repo.find_synced_files(&ctx.user_id(), params.from).await?;
@@ -140,27 +128,18 @@ pub(super) async fn upload_file(
     Path(file_id): Path<Id>,
     mut multipart: Multipart,
 ) -> Result<()> {
-    debug!(
-        "Uploading file: {}. Authenticated user {}",
-        file_id,
-        ctx.user_id()
-    );
+    debug!(%file_id, "Uploading file");
 
     let repo = DbFileRepository { db: state.db };
 
-    let file = repo
-        .find(&file_id)
-        .await?
-        .ok_or_else(|| Error::FileUpload(format!("Metadata for file {} not found", &file_id)))?;
-    debug!("Found file: {:?}", file);
+    let file = repo.find(&file_id).await?.ok_or_else(|| {
+        error!(%file_id, "Metadata not found for file upload");
+        Error::FileNotFound
+    })?;
 
     if file.uploader_id != ctx.user_id() {
-        return Err(Error::FileUpload(format!(
-            "User {} is trying to upload file {} for user {}",
-            ctx.user_id(),
-            file_id,
-            file.uploader_id
-        )));
+        error!(%file_id, "Upload authorization mismatch");
+        return Err(Error::Forbidden);
     }
 
     match file.state {
@@ -172,52 +151,66 @@ pub(super) async fn upload_file(
             let mut thumbnails_uploaded = 0;
 
             while let Some(field) = multipart.next_field().await.map_err(|e| {
-                Error::FileUpload(format!(
-                    "Failed while getting next multipart field for file {}, error {}",
-                    file_id, e
-                ))
+                error!(%file_id, error = %e, "Failed getting next multipart field");
+                Error::FileUpload
             })? {
-                debug!("Got field: {:?}", &field);
                 let headers = field.headers().clone();
                 let sha256 = headers.get("sha256_checksum").ok_or_else(|| {
-                    Error::FileUpload("Missing sha256 checksum header".to_string())
+                    error!(%file_id, "Missing sha256 checksum header");
+                    Error::FileUpload
                 })?;
                 if sha256.is_empty() {
-                    return Err(Error::FileUpload(
-                        "Empty sha256 checksum header".to_string(),
-                    ));
+                    error!(%file_id, "Empty sha256 checksum header");
+                    return Err(Error::FileUpload);
                 }
                 let sha256 = sha256.to_str().map_err(|e| {
-                    Error::FileUpload(format!("Could not parse sha256 checksum header {}", e))
+                    error!(%file_id, error = %e, "Could not parse sha256 checksum header");
+                    Error::FileUpload
                 })?;
 
                 match field.name() {
                     Some(ORIGINAL) => {
-                        upload(&file, field, ORIGINAL, sha256, &state.s3_client, &state.config.storage.bucket_name).await?;
+                        upload(
+                            &file,
+                            field,
+                            ORIGINAL,
+                            sha256,
+                            &state.s3_client,
+                            &state.config.storage.bucket_name,
+                        )
+                        .await?;
                         original_uploaded = true;
                     }
                     Some(name) if name.starts_with("thumbnail-") => {
                         let name = name.to_owned();
                         let name = name.strip_prefix("thumbnail-").unwrap();
-                        upload(&file, field, name, sha256, &state.s3_client, &state.config.storage.bucket_name).await?;
+                        upload(
+                            &file,
+                            field,
+                            name,
+                            sha256,
+                            &state.s3_client,
+                            &state.config.storage.bucket_name,
+                        )
+                        .await?;
                         thumbnails_uploaded += 1;
                     }
                     _ => {
-                        warn!("Ignoring unknown field: {:?}", field.name());
+                        warn!(field_name = ?field.name(), "Ignoring unknown field");
                     }
                 }
             }
 
             if !original_uploaded {
-                return Err(Error::FileUpload(
-                    "Original file was not uploaded".to_string(),
-                ));
+                error!(%file_id, "Original file was not uploaded");
+                return Err(Error::FileUpload);
             }
 
             if thumbnails_uploaded != 2 {
                 warn!(
-                    "Expected 2 thumbnails, but got {} for file {}",
-                    thumbnails_uploaded, file_id
+                    %file_id,
+                    count = thumbnails_uploaded,
+                    "Expected 2 thumbnails",
                 );
             }
 
@@ -226,13 +219,11 @@ pub(super) async fn upload_file(
         }
         _ => {
             error!(
-                "File {} should be in state New, but is in state {:?}",
-                file_id, file.state
+                %file_id,
+                state = ?file.state,
+                "File should be in state New",
             );
-            Err(Error::FileUpload(format!(
-                "File {} should be in state New, but is in state {:?}",
-                file_id, file.state
-            )))
+            Err(Error::FileUpload)
         }
     }
 }
@@ -247,19 +238,20 @@ async fn upload(
     client: &aws_sdk_s3::Client,
     bucket_name: &str,
 ) -> Result<()> {
-    debug!("Uploading file {}/{}", file.id, field_name);
+    let file_id = file.id;
+    debug!(%file_id, field_name, "Uploading file part");
 
     let content_type = field
         .content_type()
-        .ok_or(Error::FileUpload(format!(
-            "Missing content type for file {}",
-            file.id
-        )))?
+        .ok_or_else(|| {
+            error!(%file_id, field_name, "Missing content type");
+            Error::FileUpload
+        })?
         .to_owned();
 
     let data = field.bytes().await.map_err(|e| {
-        error!("Could not read file {} bytes {}", file.id, e);
-        Error::FileUpload(format!("Could not read field bytes {}", e))
+        error!(%file_id, field_name, error = %e, "Could not read file bytes");
+        Error::FileUpload
     })?;
 
     crypto::verify_data_hash(file.id.into(), sha256, &data)?;
@@ -275,18 +267,11 @@ async fn upload(
         .send()
         .await
         .map_err(|e| {
-            let message = format!(
-                "Could not upload file {}/{}, error: {}",
-                file.id, field_name, e
-            );
-            error!(message);
-            Error::Storage(message)
+            error!(%file_id, field_name, error = %e, "Could not upload file to storage");
+            Error::Storage
         })?;
 
-    debug!(
-        "File {}/{} upload result: {:?}",
-        file.id, field_name, result
-    );
+    debug!(%file_id, field_name, ?result, "File part upload complete");
     Ok(())
 }
 
@@ -301,21 +286,13 @@ pub(super) async fn download_file(
     Path(file_id): Path<Id>,
     Query(params): Query<FileDownloadParams>,
 ) -> Result<(HeaderMap, Bytes)> {
-    debug!(
-        "Downloading file: {} with variant {:?}. Authenticated user {}",
-        file_id,
-        params.variant,
-        ctx.user_id()
-    );
+    debug!(%file_id, variant = ?params.variant, "Downloading file");
     let repo = DbFileRepository { db: state.db };
 
-    let file = repo
-        .find(&file_id)
-        .await?
-        .ok_or(Error::FileNotFound(file_id))?;
+    let file = repo.find(&file_id).await?.ok_or(Error::FileNotFound)?;
 
     if file.owner_id != ctx.user_id() {
-        return Err(Error::Unauthorized);
+        return Err(Error::Forbidden);
     }
 
     let file_key = format!(
@@ -333,8 +310,8 @@ pub(super) async fn download_file(
         .send()
         .await
         .map_err(|e| {
-            error!("Could not get file {}, error: {}", file_id, e);
-            Error::Storage(format!("Could not get file {}", file_id))
+            error!(%file_id, error = %e, "Could not get file from storage");
+            Error::Storage
         })?;
 
     let content_type = get_object_output
@@ -345,11 +322,8 @@ pub(super) async fn download_file(
     headers.insert(
         header::CONTENT_TYPE,
         HeaderValue::from_str(content_type).map_err(|e| {
-            error!(
-                "Could not parse content type {}, error: {}",
-                content_type, e
-            );
-            Error::FileDownload("Could not set content type header".to_string())
+            error!(content_type, error = %e, "Could not parse content type");
+            Error::FileDownload
         })?,
     );
 
@@ -358,8 +332,8 @@ pub(super) async fn download_file(
         .collect()
         .await
         .map_err(|e| {
-            error!("Could not read file {} bytes, error: {}", file_id, e);
-            Error::FileDownload("Could not read file bytes".to_string())
+            error!(%file_id, error = %e, "Could not read file bytes from storage");
+            Error::FileDownload
         })?
         .into_bytes();
 
@@ -388,12 +362,7 @@ mod tests {
 
         // then
         assert!(result.is_err());
-        assert!(
-            result
-                .unwrap_err()
-                .to_string()
-                .starts_with("File upload error")
-        );
+        assert!(matches!(result.unwrap_err(), Error::Forbidden));
     }
 
     #[tokio::test]

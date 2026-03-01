@@ -1,6 +1,6 @@
 use config::Environment;
 use serde::Deserialize;
-use tracing::info;
+use tracing::{error, info};
 
 use crate::error::{Error, Result};
 
@@ -33,10 +33,14 @@ impl Config {
         let settings = config::Config::builder()
             .add_source(Environment::with_prefix("app"))
             .build()
-            .map_err(|e| Error::Configuration(format!("Failed to load configuration {}", e)))?
+            .map_err(|e| {
+                error!(error = %e, "Failed to load configuration");
+                Error::Configuration
+            })?
             .try_deserialize()
             .map_err(|e| {
-                Error::Configuration(format!("Failed to deserialize configuration {}", e))
+                error!(error = %e, "Failed to deserialize configuration");
+                Error::Configuration
             })?;
 
         info!("Successfully loaded configuration");

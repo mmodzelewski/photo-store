@@ -9,7 +9,7 @@ use axum::{
 };
 use dtos::auth::{LoginRequest, LoginResponse, PrivateKeyResponse, SaveRsaKeysRequest};
 use serde::{Deserialize, Serialize};
-use tracing::debug;
+use tracing::{debug, error};
 use uuid::Uuid;
 
 use super::{error::Error, repository::AuthRepository};
@@ -43,7 +43,7 @@ pub(super) async fn register(
         .await?;
 
     let user_id = user_id.to_string();
-    debug!("User registered: {}, {}", user.username, user_id);
+    debug!("User registered: {}", user.username);
     Ok(Json(RegisterResponse { user_id }))
 }
 
@@ -68,7 +68,7 @@ pub(super) async fn save_key(
     ctx: Ctx,
     Json(keys): Json<SaveRsaKeysRequest>,
 ) -> Result<()> {
-    debug!("Saving keys for user: {}", ctx.user_id());
+    debug!("Saving keys for user");
     let db = &state.db;
 
     AuthRepository::save_keys(db, &ctx.user_id(), &keys.private_key, &keys.public_key).await?;
@@ -79,7 +79,7 @@ pub(super) async fn get_key(
     State(state): State<AppState>,
     ctx: Ctx,
 ) -> Result<Json<PrivateKeyResponse>> {
-    debug!("Getting keys for user: {}", ctx.user_id());
+    debug!("Getting keys for user");
     let db = &state.db;
 
     let pk = AuthRepository::get_private_key(db, &ctx.user_id()).await?;
@@ -121,22 +121,38 @@ fn hash_password(password: &str) -> Result<String> {
     let argon2 = Argon2::default();
     let hash = argon2
         .hash_password(password.as_bytes(), &salt)
-        .map_err(|e| crate::error::Error::PasswordHashing(e.to_string()))?;
+        .map_err(|e| {
+            error!(error = %e, "Password hashing failed");
+            crate::error::Error::PasswordHashing
+        })?;
     Ok(hash.to_string())
 }
 
-fn verify_password(password: &str, hash: &str) -> Result<()> {
+fn verify_password(password: &str, hash: &str) -> std::result::Result<(), Error> {
     let argon2 = Argon2::default();
-    let parsed_hash = PasswordHash::new(hash).unwrap();
+    let parsed_hash = PasswordHash::new(hash).map_err(|_| Error::InvalidCredentials)?;
 
     argon2
         .verify_password(password.as_bytes(), &parsed_hash)
-        .map_err(|e| crate::error::Error::PasswordHashing(e.to_string()))?;
+        .map_err(|_| Error::InvalidCredentials)?;
     Ok(())
 }
 
 async fn verify_user_password(db: &DbPool, username: &str, password: &str) -> Result<Id> {
-    let user = AuthRepository::get_by_username(db, username).await?;
-    verify_password(password, &user.password)?;
+    let user = AuthRepository::get_by_username(db, username).await;
+
+    let user = match user {
+        Ok(user) => user,
+        Err(_) => {
+            debug!("Login attempt for non-existent user");
+            return Err(Error::InvalidCredentials.into());
+        }
+    };
+
+    verify_password(password, &user.password).map_err(|_| {
+        debug!("Login attempt with invalid password");
+        Error::InvalidCredentials
+    })?;
+
     Ok(user.id)
 }

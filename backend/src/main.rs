@@ -1,8 +1,10 @@
 use aws_config::BehaviorVersion;
-use axum::Router;
+use axum::{Router, http::Request};
 use http::header::AUTHORIZATION;
 use tokio::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
+use tower_http::request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer};
+use tower_http::trace::TraceLayer;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
 
@@ -27,6 +29,8 @@ pub struct AppState {
     s3_client: aws_sdk_s3::Client,
 }
 
+const REQUEST_ID_HEADER: &str = "x-request-id";
+
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt()
@@ -49,6 +53,8 @@ async fn main() -> Result<()> {
         s3_client,
     };
 
+    let x_request_id = http::HeaderName::from_static(REQUEST_ID_HEADER);
+
     let file_routes = file::routes(state.clone())
         .route_layer(axum::middleware::from_fn(auth::middleware::require_auth))
         .route_layer(axum::middleware::from_fn_with_state(
@@ -63,7 +69,25 @@ async fn main() -> Result<()> {
             CorsLayer::new()
                 .allow_origin(Any)
                 .allow_headers([AUTHORIZATION]),
-        );
+        )
+        .layer(PropagateRequestIdLayer::new(x_request_id.clone()))
+        .layer(
+            TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
+                let request_id = request
+                    .headers()
+                    .get(REQUEST_ID_HEADER)
+                    .and_then(|v| v.to_str().ok())
+                    .unwrap_or("unknown");
+
+                tracing::info_span!(
+                    "request",
+                    method = %request.method(),
+                    path = %request.uri().path(),
+                    request_id = %request_id,
+                )
+            }),
+        )
+        .layer(SetRequestIdLayer::new(x_request_id, MakeRequestUuid));
 
     info!("Listening on localhost:3000");
     let listener = TcpListener::bind("0.0.0.0:3000").await.unwrap();

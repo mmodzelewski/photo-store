@@ -11,6 +11,8 @@ pub enum Error {
     FileUpload(String),
     #[error("File download error: {0}")]
     FileDownload(String),
+    #[error("Storage error: {0}")]
+    Storage(String),
     #[error("File not found: {0}")]
     FileNotFound(crate::ulid::Id),
     #[error("Unauthorized")]

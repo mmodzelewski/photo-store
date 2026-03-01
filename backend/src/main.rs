@@ -1,3 +1,4 @@
+use aws_config::BehaviorVersion;
 use axum::Router;
 use http::header::AUTHORIZATION;
 use tokio::net::TcpListener;
@@ -23,6 +24,7 @@ mod ulid;
 pub struct AppState {
     db: DbPool,
     config: Config,
+    s3_client: aws_sdk_s3::Client,
 }
 
 #[tokio::main]
@@ -34,7 +36,18 @@ async fn main() -> Result<()> {
     let config = Config::load()?;
     let pool = database::init_db(&config.database).await?;
 
-    let state = AppState { db: pool, config };
+    let aws_config = aws_config::defaults(BehaviorVersion::latest())
+        .region("auto")
+        .endpoint_url(&config.storage.url)
+        .load()
+        .await;
+    let s3_client = aws_sdk_s3::Client::new(&aws_config);
+
+    let state = AppState {
+        db: pool,
+        config,
+        s3_client,
+    };
 
     let file_routes = file::routes(state.clone())
         .route_layer(axum::middleware::from_fn(auth::middleware::require_auth))

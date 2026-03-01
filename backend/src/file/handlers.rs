@@ -1,4 +1,3 @@
-use aws_config::BehaviorVersion;
 use aws_sdk_s3::primitives::ByteStream;
 use axum::body::Bytes;
 use axum::extract::Query;
@@ -14,7 +13,6 @@ use time::OffsetDateTime;
 use tracing::{debug, error, warn};
 
 use super::{File, repository::DbFileRepository};
-use crate::config::StorageConfig;
 use crate::file::repository::FileRepository;
 use crate::ulid::Id;
 use crate::{
@@ -195,13 +193,13 @@ pub(super) async fn upload_file(
 
                 match field.name() {
                     Some(ORIGINAL) => {
-                        upload(&file, field, ORIGINAL, sha256, &state.config.storage).await?;
+                        upload(&file, field, ORIGINAL, sha256, &state.s3_client, &state.config.storage.bucket_name).await?;
                         original_uploaded = true;
                     }
                     Some(name) if name.starts_with("thumbnail-") => {
                         let name = name.to_owned();
                         let name = name.strip_prefix("thumbnail-").unwrap();
-                        upload(&file, field, name, sha256, &state.config.storage).await?;
+                        upload(&file, field, name, sha256, &state.s3_client, &state.config.storage.bucket_name).await?;
                         thumbnails_uploaded += 1;
                     }
                     _ => {
@@ -246,17 +244,10 @@ async fn upload(
     field: Field<'_>,
     field_name: &str,
     sha256: &str,
-    config: &StorageConfig,
+    client: &aws_sdk_s3::Client,
+    bucket_name: &str,
 ) -> Result<()> {
     debug!("Uploading file {}/{}", file.id, field_name);
-
-    let aws_config = aws_config::defaults(BehaviorVersion::latest())
-        .region("auto")
-        .endpoint_url(&config.url)
-        .load()
-        .await;
-    // todo(mm): initialize client once
-    let client = aws_sdk_s3::Client::new(&aws_config);
 
     let content_type = field
         .content_type()
@@ -276,7 +267,7 @@ async fn upload(
     let file_key = format!("files/{}/{}/{}", file.owner_id, file.id, field_name);
     let result = client
         .put_object()
-        .bucket(&config.bucket_name)
+        .bucket(bucket_name)
         .key(&file_key)
         .content_type(content_type)
         .checksum_sha256(sha256)
@@ -289,7 +280,7 @@ async fn upload(
                 file.id, field_name, e
             );
             error!(message);
-            Error::FileUpload(message)
+            Error::Storage(message)
         })?;
 
     debug!(
@@ -327,14 +318,6 @@ pub(super) async fn download_file(
         return Err(Error::Unauthorized);
     }
 
-    let storage_config = &state.config.storage;
-    let aws_config = aws_config::defaults(BehaviorVersion::latest())
-        .region("auto")
-        .endpoint_url(&storage_config.url)
-        .load()
-        .await;
-    let client = aws_sdk_s3::Client::new(&aws_config);
-
     let file_key = format!(
         "files/{}/{}/{}",
         file.owner_id,
@@ -342,15 +325,16 @@ pub(super) async fn download_file(
         params.variant.unwrap_or(ORIGINAL.to_owned())
     );
 
-    let get_object_output = client
+    let get_object_output = state
+        .s3_client
         .get_object()
-        .bucket(&storage_config.bucket_name)
+        .bucket(&state.config.storage.bucket_name)
         .key(&file_key)
         .send()
         .await
         .map_err(|e| {
             error!("Could not get file {}, error: {}", file_id, e);
-            Error::FileDownload(format!("Could not get file {}", file_id))
+            Error::Storage(format!("Could not get file {}", file_id))
         })?;
 
     let content_type = get_object_output

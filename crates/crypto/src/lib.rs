@@ -91,7 +91,7 @@ fn hash(data: &[u8]) -> String {
 
 fn generate_nonce_from_id(id: Ulid) -> Nonce<U12> {
     let id_bytes = id.to_bytes();
-    let hash = Sha256::digest(&id_bytes);
+    let hash = Sha256::digest(id_bytes);
     let nonce_bytes: [u8; 12] = hash[0..12].try_into().unwrap();
     Nonce::from(nonce_bytes)
 }

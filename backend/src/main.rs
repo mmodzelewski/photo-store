@@ -13,8 +13,10 @@ mod auth;
 mod config;
 mod ctx;
 mod database;
+mod entity;
 mod error;
 mod file;
+mod migration;
 mod ulid;
 
 #[derive(Clone)]
@@ -32,10 +34,7 @@ async fn main() -> Result<()> {
     let config = Config::load()?;
     let pool = database::init_db(&config.database).await?;
 
-    let state = AppState {
-        db: pool,
-        config,
-    };
+    let state = AppState { db: pool, config };
 
     let file_routes = file::routes(state.clone())
         .route_layer(axum::middleware::from_fn(auth::middleware::require_auth))

@@ -16,8 +16,9 @@ crypto = { version = "0.1.0", path = "../crates/crypto" }
 dtos = { version = "0.1.0", path = "../crates/dtos" }
 http = "1.4.0"
 reqwest = { workspace = true, features = ["blocking"] }
+sea-orm = { version = "~2.0.0-rc", features = ["sqlx-postgres", "runtime-tokio-rustls", "macros"] }
+sea-orm-migration = { version = "~2.0.0-rc", features = ["runtime-tokio-rustls", "sqlx-postgres"] }
 serde = { version = "1.0.228", features = ["derive"] }
-sqlx = { version = "0.8.6", features = ["runtime-tokio", "tls-rustls", "postgres", "uuid", "time", "migrate"] }
 thiserror = "2.0.18"
 time = { version = "0.3.47", features = ["parsing", "serde"] }
 tokio = { version = "1.49.0", features = ["full"] }

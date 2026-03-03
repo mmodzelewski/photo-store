@@ -183,11 +183,16 @@ pub(super) async fn upload_file(
                     }
                     Some(name) if name.starts_with("thumbnail-") => {
                         let name = name.to_owned();
-                        let name = name.strip_prefix("thumbnail-").unwrap();
+                        let thumb_name = name.strip_prefix("thumbnail-").unwrap();
+                        let thumb: sdk::thumbnails::ThumbnailVariant =
+                            thumb_name.parse().map_err(|_| {
+                                error!(%file_id, name = thumb_name, "Invalid thumbnail variant");
+                                Error::FileUpload
+                            })?;
                         upload(
                             &file,
                             field,
-                            name,
+                            &thumb.to_string(),
                             sha256,
                             &state.s3_client,
                             &state.config.storage.bucket_name,
@@ -276,8 +281,8 @@ async fn upload(
 }
 
 #[derive(Debug, Deserialize)]
-pub struct FileDownloadParams {
-    variant: Option<String>,
+pub(super) struct FileDownloadParams {
+    variant: Option<sdk::thumbnails::ThumbnailVariant>,
 }
 
 pub(super) async fn download_file(
@@ -295,12 +300,13 @@ pub(super) async fn download_file(
         return Err(Error::Forbidden);
     }
 
-    let file_key = format!(
-        "files/{}/{}/{}",
-        file.owner_id,
-        file.id,
-        params.variant.unwrap_or(ORIGINAL.to_owned())
-    );
+    let variant = params
+        .variant
+        .as_ref()
+        .map(|v| v.to_string())
+        .unwrap_or_else(|| ORIGINAL.to_owned());
+
+    let file_key = format!("files/{}/{}/{}", file.owner_id, file.id, variant);
 
     let get_object_output = state
         .s3_client

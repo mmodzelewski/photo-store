@@ -1,0 +1,9 @@
+[package]
+name = "sdk"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = { workspace = true }
+serde = { version = "1.0.228", features = ["derive"] }
+strum = { workspace = true }

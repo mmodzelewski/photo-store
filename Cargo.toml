@@ -6,9 +6,12 @@ members = [
     # "clients/native/src-tauri",
     "crates/crypto",
     "crates/dtos",
+    "sdk",
 ]
 
 [workspace.dependencies]
+anyhow = { version = "1.0.102" }
 reqwest = { version = "0.13.2" }
+strum = { version = "0.28.0", features = ["derive"] }
 ulid = { version = "1", features = ["serde"] }
 uuid = { version = "1.21.0", features = ["v4", "fast-rng"] }

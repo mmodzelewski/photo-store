@@ -5,27 +5,23 @@ edition = "2024"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-aes-gcm = "0.10.3"
 argon2 = "0.5.3"
 aws-config = "1.8.14"
 aws-sdk-s3 = "1.124.0"
 axum = { version = "0.8.8", features = ["multipart"] }
-base64ct = { version = "1.8.3", features = ["std"] }
 config = "0.15.19"
 crypto = { version = "0.1.0", path = "../crates/crypto" }
 dtos = { version = "0.1.0", path = "../crates/dtos" }
 http = "1.4.0"
-reqwest = { workspace = true, features = ["blocking"] }
+sdk = { version = "0.1.0", path = "../sdk" }
 sea-orm = { version = "~2.0.0-rc", features = ["sqlx-postgres", "runtime-tokio-rustls", "macros"] }
 sea-orm-migration = { version = "~2.0.0-rc", features = ["runtime-tokio-rustls", "sqlx-postgres"] }
 serde = { version = "1.0.228", features = ["derive"] }
 thiserror = "2.0.18"
 time = { version = "0.3.47", features = ["parsing", "serde"] }
 tokio = { version = "1.49.0", features = ["full"] }
-toml = "1.0.3"
 tower-http = { version = "0.6.8", features = ["limit", "cors", "request-id", "trace", "util"] }
-ulid = { workspace = true }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
-url = "2.5.8"
+ulid = { workspace = true }
 uuid = { workspace = true }

@@ -60,7 +60,7 @@ impl FileRepository for DbFileRepository {
     ) -> Result<Vec<File>> {
         let mut query = Files::find()
             .filter(files::Column::OwnerId.eq(uuid::Uuid::from(*user_id)))
-            .filter(files::Column::State.eq("Synced"));
+            .filter(files::Column::State.eq(EntityFileState::Synced));
 
         if let Some(from) = from {
             query = query.filter(files::Column::AddedAt.gte(from));

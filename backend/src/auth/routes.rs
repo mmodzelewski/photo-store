@@ -11,7 +11,7 @@ pub(crate) fn routes(app_state: AppState) -> Router {
         .route_layer(axum::middleware::from_fn(super::middleware::require_auth))
         .route_layer(axum::middleware::from_fn_with_state(
             app_state.clone(),
-            super::middleware::ctx_resolver,
+            super::middleware::session_resolver,
         ));
 
     Router::new()
@@ -19,7 +19,7 @@ pub(crate) fn routes(app_state: AppState) -> Router {
         .route_layer(axum::middleware::from_fn(super::middleware::require_auth))
         .route_layer(axum::middleware::from_fn_with_state(
             app_state.clone(),
-            super::middleware::ctx_resolver,
+            super::middleware::session_resolver,
         ))
         .route("/login", post(login))
         .route("/register", post(register))

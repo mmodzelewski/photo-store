@@ -17,31 +17,31 @@ use crate::file::repository::FileRepository;
 use crate::ulid::Id;
 use crate::{
     AppState,
-    ctx::Ctx,
     error::{Error, Result},
     file::FileState,
+    session::Session,
 };
 
 pub(super) async fn upload_files_metadata(
     State(state): State<AppState>,
-    ctx: Ctx,
+    session: Session,
     Json(request): Json<FilesUploadRequest>,
 ) -> Result<()> {
     debug!(count = request.files.len(), "Uploading files metadata",);
 
     let mut repo = DbFileRepository { db: state.db };
-    upload_files_metadata_internal(&mut repo, ctx, request).await?;
+    upload_files_metadata_internal(&mut repo, session, request).await?;
 
     Ok(())
 }
 
 async fn upload_files_metadata_internal(
     repo: &mut impl FileRepository,
-    ctx: Ctx,
+    session: Session,
     request: FilesUploadRequest,
 ) -> Result<()> {
     let request_user_id: Id = request.user_id.into();
-    if request_user_id != ctx.user_id() {
+    if request_user_id != session.user_id() {
         error!("Upload authorization mismatch");
         return Err(Error::Forbidden);
     }
@@ -64,7 +64,7 @@ async fn upload_files_metadata_internal(
             added_at: OffsetDateTime::now_utc(),
             sha256: item.sha256.clone(),
             owner_id: request_user_id,
-            uploader_id: ctx.user_id(),
+            uploader_id: session.user_id(),
             enc_key: item.key.clone(),
         };
 
@@ -101,12 +101,14 @@ fn empty_string_as_none<'de, D: Deserializer<'de>>(
 pub(super) async fn get_files_metadata(
     State(state): State<AppState>,
     Query(params): Query<DownloadParams>,
-    ctx: Ctx,
+    session: Session,
 ) -> Result<Json<Vec<FileMetadata>>> {
     debug!("Getting files metadata");
 
     let repo = DbFileRepository { db: state.db };
-    let files = repo.find_synced_files(&ctx.user_id(), params.from).await?;
+    let files = repo
+        .find_synced_files(&session.user_id(), params.from)
+        .await?;
 
     let metadata: Vec<FileMetadata> = files
         .into_iter()
@@ -131,7 +133,7 @@ pub(super) struct FileDownloadParams {
 
 pub(super) async fn download_file(
     State(state): State<AppState>,
-    ctx: Ctx,
+    session: Session,
     Path(file_id): Path<Id>,
     Query(params): Query<FileDownloadParams>,
 ) -> Result<(HeaderMap, Bytes)> {
@@ -140,7 +142,7 @@ pub(super) async fn download_file(
 
     let file = repo.find(&file_id).await?.ok_or(Error::FileNotFound)?;
 
-    if file.owner_id != ctx.user_id() {
+    if file.owner_id != session.user_id() {
         return Err(Error::Forbidden);
     }
 
@@ -205,10 +207,10 @@ mod tests {
             files: vec![],
         };
 
-        let ctx = Ctx::new(Id::new());
+        let session = Session::new(Id::new());
 
         // when
-        let result = upload_files_metadata_internal(&mut repo, ctx, request).await;
+        let result = upload_files_metadata_internal(&mut repo, session, request).await;
 
         // then
         assert!(result.is_err());
@@ -232,10 +234,10 @@ mod tests {
             }],
         };
         let metadata = request.files[0].clone();
-        let ctx = Ctx::new(user_id.into());
+        let session = Session::new(user_id.into());
 
         // when
-        upload_files_metadata_internal(&mut repo, ctx, request)
+        upload_files_metadata_internal(&mut repo, session, request)
             .await
             .unwrap();
 

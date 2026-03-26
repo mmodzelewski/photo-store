@@ -1,11 +1,11 @@
 use crate::ulid::Id;
 
 #[derive(Clone, Debug)]
-pub struct Ctx {
+pub struct Session {
     user_id: Id,
 }
 
-impl Ctx {
+impl Session {
     pub fn new(user_id: Id) -> Self {
         Self { user_id }
     }

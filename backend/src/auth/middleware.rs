@@ -9,31 +9,31 @@ use tracing::debug;
 
 use crate::{
     AppState,
-    ctx::Ctx,
     error::{Error, Result},
+    session::Session,
 };
 
 use super::error::Error as AuthError;
 
 pub(crate) async fn require_auth(
-    ctx: Result<Ctx>,
+    session: Result<Session>,
     request: Request<Body>,
     next: Next,
 ) -> Result<Response> {
     debug!("require_auth middleware");
 
-    let ctx = ctx?;
-    debug!("user identified: {:?}", ctx.user_id());
+    let session = session?;
+    debug!("user identified: {:?}", session.user_id());
 
     Ok(next.run(request).await)
 }
 
-pub(crate) async fn ctx_resolver(
+pub(crate) async fn session_resolver(
     State(state): State<AppState>,
     mut request: Request<Body>,
     next: Next,
 ) -> Result<Response> {
-    debug!("ctx_resolver middleware");
+    debug!("session_resolver middleware");
 
     let auth_token = request
         .headers()
@@ -51,21 +51,21 @@ pub(crate) async fn ctx_resolver(
         Err(e) => Err(Error::Auth(e)),
     };
 
-    let result_ctx = user_id.map(Ctx::new);
+    let result_session = user_id.map(Session::new);
 
-    request.extensions_mut().insert(result_ctx);
+    request.extensions_mut().insert(result_session);
 
-    debug!("ctx_resolver next");
+    debug!("session_resolver next");
     Ok(next.run(request).await)
 }
 
-impl<S: Send + Sync> FromRequestParts<S> for Ctx {
+impl<S: Send + Sync> FromRequestParts<S> for Session {
     type Rejection = Error;
 
     async fn from_request_parts(parts: &mut Parts, _s: &S) -> Result<Self> {
         parts
             .extensions
-            .get::<Result<Ctx>>()
+            .get::<Result<Session>>()
             .ok_or::<Error>(AuthError::MissingAuthContext.into())?
             .clone()
     }

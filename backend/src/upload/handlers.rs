@@ -8,10 +8,10 @@ use time::OffsetDateTime;
 use tracing::{debug, error, info, warn};
 
 use crate::AppState;
-use crate::ctx::Ctx;
 use crate::error::{Error, Result};
 use crate::file::repository::{DbFileRepository, FileRepository};
 use crate::file::{File, FileState};
+use crate::session::Session;
 use crate::ulid::Id;
 
 use super::repository::{DbUploadRepository, UploadRepository};
@@ -23,7 +23,7 @@ use super::{
 
 pub(super) async fn init_upload(
     State(state): State<AppState>,
-    ctx: Ctx,
+    session: Session,
     Path(file_id): Path<Id>,
     Json(request): Json<InitUploadRequest>,
 ) -> Result<(StatusCode, Json<InitUploadResponse>)> {
@@ -32,7 +32,7 @@ pub(super) async fn init_upload(
     let file_repo = DbFileRepository {
         db: state.db.clone(),
     };
-    let file = load_and_authorize(&file_repo, &file_id, ctx.user_id()).await?;
+    let file = load_and_authorize(&file_repo, &file_id, session.user_id()).await?;
     let mut upload_repo = DbUploadRepository {
         db: state.db.clone(),
     };
@@ -80,7 +80,7 @@ pub(super) async fn init_upload(
     let chunk_size = request.chunk_size as i64;
     let total_chunks = ((request.total_size + chunk_size - 1) / chunk_size) as i32;
 
-    let session_count = upload_repo.count_user_sessions(&ctx.user_id()).await?;
+    let session_count = upload_repo.count_user_sessions(&session.user_id()).await?;
     if session_count >= state.config.upload.max_concurrent_sessions {
         error!(
             %file_id,
@@ -139,7 +139,7 @@ pub(super) async fn init_upload(
 
 pub(super) async fn upload_status(
     State(state): State<AppState>,
-    ctx: Ctx,
+    session: Session,
     Path(file_id): Path<Id>,
 ) -> Result<Json<UploadStatusResponse>> {
     debug!(%file_id, "Querying upload status");
@@ -147,7 +147,7 @@ pub(super) async fn upload_status(
     let file_repo = DbFileRepository {
         db: state.db.clone(),
     };
-    let file = load_and_authorize(&file_repo, &file_id, ctx.user_id()).await?;
+    let file = load_and_authorize(&file_repo, &file_id, session.user_id()).await?;
 
     let upload_repo = DbUploadRepository {
         db: state.db.clone(),
@@ -198,7 +198,7 @@ pub(super) async fn upload_status(
 
 pub(super) async fn complete_upload(
     State(state): State<AppState>,
-    ctx: Ctx,
+    session: Session,
     Path(file_id): Path<Id>,
     Json(request): Json<CompleteUploadRequest>,
 ) -> Result<Json<CompleteUploadResponse>> {
@@ -207,7 +207,7 @@ pub(super) async fn complete_upload(
     let file_repo = DbFileRepository {
         db: state.db.clone(),
     };
-    let file = load_and_authorize(&file_repo, &file_id, ctx.user_id()).await?;
+    let file = load_and_authorize(&file_repo, &file_id, session.user_id()).await?;
 
     let upload_repo = DbUploadRepository {
         db: state.db.clone(),
@@ -277,7 +277,7 @@ pub(super) async fn complete_upload(
 
 pub(super) async fn abort_upload(
     State(state): State<AppState>,
-    ctx: Ctx,
+    session: Session,
     Path(file_id): Path<Id>,
 ) -> Result<StatusCode> {
     debug!(%file_id, "Aborting upload");
@@ -285,7 +285,7 @@ pub(super) async fn abort_upload(
     let file_repo = DbFileRepository {
         db: state.db.clone(),
     };
-    let file = load_and_authorize(&file_repo, &file_id, ctx.user_id()).await?;
+    let file = load_and_authorize(&file_repo, &file_id, session.user_id()).await?;
 
     let upload_repo = DbUploadRepository {
         db: state.db.clone(),

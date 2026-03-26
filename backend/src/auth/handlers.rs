@@ -1,4 +1,4 @@
-use crate::{AppState, ctx::Ctx, database::DbPool, error::Result, ulid::Id};
+use crate::{AppState, database::DbPool, error::Result, session::Session, ulid::Id};
 use argon2::{
     Argon2, PasswordHash, PasswordHasher, PasswordVerifier,
     password_hash::{SaltString, rand_core::OsRng},
@@ -65,24 +65,24 @@ pub(super) async fn login(
 
 pub(super) async fn save_key(
     State(state): State<AppState>,
-    ctx: Ctx,
+    session: Session,
     Json(keys): Json<SaveRsaKeysRequest>,
 ) -> Result<()> {
     debug!("Saving keys for user");
     let db = &state.db;
 
-    AuthRepository::save_keys(db, &ctx.user_id(), &keys.private_key, &keys.public_key).await?;
+    AuthRepository::save_keys(db, &session.user_id(), &keys.private_key, &keys.public_key).await?;
     Ok(())
 }
 
 pub(super) async fn get_key(
     State(state): State<AppState>,
-    ctx: Ctx,
+    session: Session,
 ) -> Result<Json<PrivateKeyResponse>> {
     debug!("Getting keys for user");
     let db = &state.db;
 
-    let pk = AuthRepository::get_private_key(db, &ctx.user_id()).await?;
+    let pk = AuthRepository::get_private_key(db, &session.user_id()).await?;
     Ok(Json(PrivateKeyResponse { value: pk }))
 }
 
@@ -94,18 +94,18 @@ pub struct RedirectUri {
 pub(super) async fn login_desktop(
     State(state): State<AppState>,
     redirect_uri: Query<RedirectUri>,
-    ctx: Ctx,
+    session: Session,
 ) -> Result<Json<RedirectUri>> {
     let db = &state.db;
 
     let auth_token = Uuid::new_v4().to_string();
-    AuthRepository::save_auth_token(db, &ctx.user_id(), &auth_token).await?;
+    AuthRepository::save_auth_token(db, &session.user_id(), &auth_token).await?;
 
     let redirect_uri = format!(
         "{}?auth_token={}&user_id={}",
         redirect_uri.redirect_uri,
         auth_token,
-        ctx.user_id(),
+        session.user_id(),
     );
     Ok(Json(RedirectUri { redirect_uri }))
 }

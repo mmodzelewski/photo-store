@@ -1,5 +1,4 @@
-use axum::{Router, extract::DefaultBodyLimit, routing::get};
-use tower_http::limit::RequestBodyLimitLayer;
+use axum::{Router, routing::get};
 
 use crate::AppState;
 
@@ -11,11 +10,6 @@ pub(crate) fn routes(app_state: AppState) -> Router {
             "/files/metadata",
             get(handlers::get_files_metadata).post(handlers::upload_files_metadata),
         )
-        .route(
-            "/files/{file_id}/data",
-            get(handlers::download_file).post(handlers::upload_file),
-        )
-        .layer(DefaultBodyLimit::disable())
-        .layer(RequestBodyLimitLayer::new(250 * 1024 * 1024))
+        .route("/files/{file_id}/data", get(handlers::download_file))
         .with_state(app_state)
 }

@@ -1,5 +1,5 @@
 mod handlers;
-mod repository;
+pub(crate) mod repository;
 mod routes;
 
 pub(crate) use routes::routes;
@@ -13,6 +13,7 @@ pub(crate) enum FileState {
     New,
     SyncInProgress,
     Synced,
+    Failed,
 }
 
 impl From<EntityFileState> for FileState {
@@ -21,6 +22,7 @@ impl From<EntityFileState> for FileState {
             EntityFileState::New => FileState::New,
             EntityFileState::SyncInProgress => FileState::SyncInProgress,
             EntityFileState::Synced => FileState::Synced,
+            EntityFileState::Failed => FileState::Failed,
         }
     }
 }
@@ -31,6 +33,7 @@ impl From<FileState> for EntityFileState {
             FileState::New => EntityFileState::New,
             FileState::SyncInProgress => EntityFileState::SyncInProgress,
             FileState::Synced => EntityFileState::Synced,
+            FileState::Failed => EntityFileState::Failed,
         }
     }
 }

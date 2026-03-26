@@ -21,6 +21,7 @@ mod error;
 mod file;
 mod migration;
 mod ulid;
+mod upload;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -55,15 +56,23 @@ async fn main() -> Result<()> {
 
     let x_request_id = http::HeaderName::from_static(REQUEST_ID_HEADER);
 
-    let file_routes = file::routes(state.clone())
-        .route_layer(axum::middleware::from_fn(auth::middleware::require_auth))
-        .route_layer(axum::middleware::from_fn_with_state(
-            state.clone(),
-            auth::middleware::ctx_resolver,
-        ));
+    let auth_layers = |router: Router| {
+        router
+            .route_layer(axum::middleware::from_fn(auth::middleware::require_auth))
+            .route_layer(axum::middleware::from_fn_with_state(
+                state.clone(),
+                auth::middleware::ctx_resolver,
+            ))
+    };
+
+    let file_routes = auth_layers(file::routes(state.clone()));
+    let upload_routes = auth_layers(upload::routes(state.clone()));
+
+    tokio::spawn(upload::cleanup_expired_uploads(state.clone()));
 
     let app = Router::new()
         .merge(file_routes)
+        .merge(upload_routes)
         .nest("/auth", auth::routes(state.clone()))
         .layer(
             CorsLayer::new()

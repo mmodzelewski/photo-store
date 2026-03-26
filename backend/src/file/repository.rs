@@ -12,7 +12,7 @@ use crate::ulid::Id;
 
 use super::{File, FileState};
 
-pub(super) trait FileRepository {
+pub(crate) trait FileRepository {
     async fn exists(&self, id: &Id) -> Result<bool>;
     async fn find(&self, id: &Id) -> Result<Option<File>>;
     async fn find_synced_files(
@@ -24,7 +24,7 @@ pub(super) trait FileRepository {
     async fn update_state(&self, file_id: &Id, state: FileState) -> Result<()>;
 }
 
-pub(super) struct DbFileRepository {
+pub(crate) struct DbFileRepository {
     pub db: DbPool,
 }
 
@@ -123,25 +123,34 @@ impl FileRepository for DbFileRepository {
 #[cfg(test)]
 pub mod tests {
     use super::*;
+    use std::cell::RefCell;
 
     pub struct InMemoryFileRepository {
-        pub files: Vec<File>,
+        pub files: RefCell<Vec<File>>,
     }
 
     impl InMemoryFileRepository {
         pub fn new() -> Self {
-            Self { files: Vec::new() }
+            Self {
+                files: RefCell::new(Vec::new()),
+            }
+        }
+
+        pub fn with_files(files: Vec<File>) -> Self {
+            Self {
+                files: RefCell::new(files),
+            }
         }
     }
 
     impl FileRepository for InMemoryFileRepository {
         async fn exists(&self, id: &Id) -> Result<bool> {
-            let exists = self.files.iter().any(|f| f.id == *id);
+            let exists = self.files.borrow().iter().any(|f| f.id == *id);
             Ok(exists)
         }
 
-        async fn find(&self, _id: &Id) -> Result<Option<File>> {
-            todo!()
+        async fn find(&self, id: &Id) -> Result<Option<File>> {
+            Ok(self.files.borrow().iter().find(|f| f.id == *id).cloned())
         }
 
         async fn find_synced_files(
@@ -151,6 +160,7 @@ pub mod tests {
         ) -> Result<Vec<File>> {
             Ok(self
                 .files
+                .borrow()
                 .iter()
                 .filter(|f| f.owner_id == *user_id)
                 .filter(|f| matches!(f.state, FileState::Synced))
@@ -160,12 +170,20 @@ pub mod tests {
         }
 
         async fn save(&mut self, file: &File) -> Result<()> {
-            self.files.push(file.clone());
+            self.files.borrow_mut().push(file.clone());
             Ok(())
         }
 
-        async fn update_state(&self, _file_id: &Id, _state: FileState) -> Result<()> {
-            todo!()
+        async fn update_state(&self, file_id: &Id, state: FileState) -> Result<()> {
+            if let Some(file) = self
+                .files
+                .borrow_mut()
+                .iter_mut()
+                .find(|f| f.id == *file_id)
+            {
+                file.state = state;
+            }
+            Ok(())
         }
     }
 }

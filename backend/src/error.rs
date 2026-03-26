@@ -29,6 +29,16 @@ pub enum Error {
     Configuration,
     #[error("Crypto error")]
     Crypto(#[from] crypto::error::Error),
+    #[error("Upload session not found")]
+    UploadNotFound,
+    #[error("Upload conflict")]
+    UploadConflict,
+    #[error("Upload incomplete")]
+    UploadIncomplete,
+    #[error("Upload expired")]
+    UploadExpired,
+    #[error("Rate limit exceeded")]
+    TooManyRequests,
 }
 
 impl IntoResponse for Error {
@@ -36,8 +46,13 @@ impl IntoResponse for Error {
         let (status, message) = match &self {
             Error::Auth(_) => (StatusCode::UNAUTHORIZED, "Unauthorized"),
             Error::Forbidden => (StatusCode::FORBIDDEN, "Forbidden"),
-            Error::FileNotFound => (StatusCode::NOT_FOUND, "Not found"),
-            Error::FileUpload | Error::FileDownload => (StatusCode::BAD_REQUEST, "Bad request"),
+            Error::FileNotFound | Error::UploadNotFound => (StatusCode::NOT_FOUND, "Not found"),
+            Error::FileUpload | Error::FileDownload | Error::UploadIncomplete => {
+                (StatusCode::BAD_REQUEST, "Bad request")
+            }
+            Error::UploadConflict => (StatusCode::CONFLICT, "Conflict"),
+            Error::UploadExpired => (StatusCode::GONE, "Gone"),
+            Error::TooManyRequests => (StatusCode::TOO_MANY_REQUESTS, "Too many requests"),
             Error::Storage
             | Error::Database
             | Error::DbMigration

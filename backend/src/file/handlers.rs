@@ -1,10 +1,9 @@
-use aws_sdk_s3::primitives::ByteStream;
 use axum::body::Bytes;
 use axum::extract::Query;
 use axum::http::{HeaderMap, HeaderValue};
 use axum::{
     Json,
-    extract::{Multipart, Path, State, multipart::Field},
+    extract::{Path, State},
 };
 use dtos::file::{FileMetadata, FilesUploadRequest};
 use http::header;
@@ -12,7 +11,8 @@ use serde::{Deserialize, Deserializer, de};
 use time::OffsetDateTime;
 use tracing::{debug, error, warn};
 
-use super::{File, repository::DbFileRepository};
+use super::File;
+use super::repository::DbFileRepository;
 use crate::file::repository::FileRepository;
 use crate::ulid::Id;
 use crate::{
@@ -122,163 +122,7 @@ pub(super) async fn get_files_metadata(
     Ok(Json(metadata))
 }
 
-pub(super) async fn upload_file(
-    State(state): State<AppState>,
-    ctx: Ctx,
-    Path(file_id): Path<Id>,
-    mut multipart: Multipart,
-) -> Result<()> {
-    debug!(%file_id, "Uploading file");
-
-    let repo = DbFileRepository { db: state.db };
-
-    let file = repo.find(&file_id).await?.ok_or_else(|| {
-        error!(%file_id, "Metadata not found for file upload");
-        Error::FileNotFound
-    })?;
-
-    if file.uploader_id != ctx.user_id() {
-        error!(%file_id, "Upload authorization mismatch");
-        return Err(Error::Forbidden);
-    }
-
-    match file.state {
-        FileState::New => {
-            repo.update_state(&file_id, FileState::SyncInProgress)
-                .await?;
-
-            let mut original_uploaded = false;
-            let mut thumbnails_uploaded = 0;
-
-            while let Some(field) = multipart.next_field().await.map_err(|e| {
-                error!(%file_id, error = %e, "Failed getting next multipart field");
-                Error::FileUpload
-            })? {
-                let headers = field.headers().clone();
-                let sha256 = headers.get("sha256_checksum").ok_or_else(|| {
-                    error!(%file_id, "Missing sha256 checksum header");
-                    Error::FileUpload
-                })?;
-                if sha256.is_empty() {
-                    error!(%file_id, "Empty sha256 checksum header");
-                    return Err(Error::FileUpload);
-                }
-                let sha256 = sha256.to_str().map_err(|e| {
-                    error!(%file_id, error = %e, "Could not parse sha256 checksum header");
-                    Error::FileUpload
-                })?;
-
-                match field.name() {
-                    Some(ORIGINAL) => {
-                        upload(
-                            &file,
-                            field,
-                            ORIGINAL,
-                            sha256,
-                            &state.s3_client,
-                            &state.config.storage.bucket_name,
-                        )
-                        .await?;
-                        original_uploaded = true;
-                    }
-                    Some(name) if name.starts_with("thumbnail-") => {
-                        let name = name.to_owned();
-                        let thumb_name = name.strip_prefix("thumbnail-").unwrap();
-                        let thumb: sdk::thumbnails::ThumbnailVariant =
-                            thumb_name.parse().map_err(|_| {
-                                error!(%file_id, name = thumb_name, "Invalid thumbnail variant");
-                                Error::FileUpload
-                            })?;
-                        upload(
-                            &file,
-                            field,
-                            &thumb.to_string(),
-                            sha256,
-                            &state.s3_client,
-                            &state.config.storage.bucket_name,
-                        )
-                        .await?;
-                        thumbnails_uploaded += 1;
-                    }
-                    _ => {
-                        warn!(field_name = ?field.name(), "Ignoring unknown field");
-                    }
-                }
-            }
-
-            if !original_uploaded {
-                error!(%file_id, "Original file was not uploaded");
-                return Err(Error::FileUpload);
-            }
-
-            if thumbnails_uploaded != 2 {
-                warn!(
-                    %file_id,
-                    count = thumbnails_uploaded,
-                    "Expected 2 thumbnails",
-                );
-            }
-
-            repo.update_state(&file_id, FileState::Synced).await?;
-            Ok(())
-        }
-        _ => {
-            error!(
-                %file_id,
-                state = ?file.state,
-                "File should be in state New",
-            );
-            Err(Error::FileUpload)
-        }
-    }
-}
-
 const ORIGINAL: &str = "original";
-
-async fn upload(
-    file: &File,
-    field: Field<'_>,
-    field_name: &str,
-    sha256: &str,
-    client: &aws_sdk_s3::Client,
-    bucket_name: &str,
-) -> Result<()> {
-    let file_id = file.id;
-    debug!(%file_id, field_name, "Uploading file part");
-
-    let content_type = field
-        .content_type()
-        .ok_or_else(|| {
-            error!(%file_id, field_name, "Missing content type");
-            Error::FileUpload
-        })?
-        .to_owned();
-
-    let data = field.bytes().await.map_err(|e| {
-        error!(%file_id, field_name, error = %e, "Could not read file bytes");
-        Error::FileUpload
-    })?;
-
-    crypto::verify_data_hash(file.id.into(), sha256, &data)?;
-
-    let file_key = format!("files/{}/{}/{}", file.owner_id, file.id, field_name);
-    let result = client
-        .put_object()
-        .bucket(bucket_name)
-        .key(&file_key)
-        .content_type(content_type)
-        .checksum_sha256(sha256)
-        .body(ByteStream::from(data))
-        .send()
-        .await
-        .map_err(|e| {
-            error!(%file_id, field_name, error = %e, "Could not upload file to storage");
-            Error::Storage
-        })?;
-
-    debug!(%file_id, field_name, ?result, "File part upload complete");
-    Ok(())
-}
 
 #[derive(Debug, Deserialize)]
 pub(super) struct FileDownloadParams {
@@ -396,7 +240,8 @@ mod tests {
             .unwrap();
 
         // then
-        let file = &repo.files[0];
+        let files = repo.files.borrow();
+        let file = &files[0];
         assert_eq!(file.path, "/home/pics/test.jpg");
         assert_eq!(file.name, "test.jpg");
         assert!(matches!(file.state, FileState::New));

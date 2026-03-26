@@ -5,5 +5,6 @@
 pub use super::app_users::Entity as AppUsers;
 pub use super::auth_tokens::Entity as AuthTokens;
 pub use super::files::Entity as Files;
+pub use super::upload_sessions::Entity as UploadSessions;
 pub use super::user_accounts::Entity as UserAccounts;
 pub use super::user_keys::Entity as UserKeys;

@@ -146,6 +146,7 @@ impl MigrationTrait for Migration {
                         FileStateEnum::New,
                         FileStateEnum::SyncInProgress,
                         FileStateEnum::Synced,
+                        FileStateEnum::Failed,
                     ])
                     .to_owned(),
             )
@@ -189,6 +190,66 @@ impl MigrationTrait for Migration {
                             .from(File::Table, File::UploaderId)
                             .to(AppUser::Table, AppUser::Id),
                     )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(UploadSession::Table)
+                    .col(
+                        ColumnDef::new(UploadSession::FileId)
+                            .uuid()
+                            .not_null()
+                            .primary_key(),
+                    )
+                    .col(ColumnDef::new(UploadSession::UploadId).text().not_null())
+                    .col(
+                        ColumnDef::new(UploadSession::TotalSize)
+                            .big_integer()
+                            .not_null()
+                            .check(Expr::col(UploadSession::TotalSize).gt(0)),
+                    )
+                    .col(
+                        ColumnDef::new(UploadSession::ChunkSize)
+                            .integer()
+                            .not_null()
+                            .check(Expr::col(UploadSession::ChunkSize).gt(0)),
+                    )
+                    .col(
+                        ColumnDef::new(UploadSession::TotalChunks)
+                            .integer()
+                            .not_null()
+                            .check(Expr::col(UploadSession::TotalChunks).gt(0)),
+                    )
+                    .col(
+                        ColumnDef::new(UploadSession::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null()
+                            .default(Expr::current_timestamp()),
+                    )
+                    .col(
+                        ColumnDef::new(UploadSession::ExpiresAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .from(UploadSession::Table, UploadSession::FileId)
+                            .to(File::Table, File::Id)
+                            .on_delete(ForeignKeyAction::Cascade),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_upload_sessions_expires_at")
+                    .table(UploadSession::Table)
+                    .col(UploadSession::ExpiresAt)
                     .to_owned(),
             )
             .await?;
@@ -253,6 +314,7 @@ enum FileStateEnum {
     New,
     SyncInProgress,
     Synced,
+    Failed,
 }
 
 #[derive(DeriveIden)]
@@ -269,4 +331,17 @@ enum File {
     OwnerId,
     UploaderId,
     EncKey,
+}
+
+#[derive(DeriveIden)]
+enum UploadSession {
+    #[sea_orm(iden = "upload_sessions")]
+    Table,
+    FileId,
+    UploadId,
+    TotalSize,
+    ChunkSize,
+    TotalChunks,
+    CreatedAt,
+    ExpiresAt,
 }

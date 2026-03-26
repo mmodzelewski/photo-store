@@ -6,5 +6,6 @@ pub mod app_users;
 pub mod auth_tokens;
 pub mod files;
 pub mod sea_orm_active_enums;
+pub mod upload_sessions;
 pub mod user_accounts;
 pub mod user_keys;

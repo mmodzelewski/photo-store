@@ -11,6 +11,8 @@ pub enum FileState {
     SyncInProgress,
     #[sea_orm(string_value = "synced")]
     Synced,
+    #[sea_orm(string_value = "failed")]
+    Failed,
 }
 #[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum)]
 #[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "provider")]

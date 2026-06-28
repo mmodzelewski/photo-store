@@ -889,8 +889,6 @@ dependencies = [
  "aws-sdk-s3",
  "axum",
  "config",
- "crypto",
- "dtos",
  "http 1.4.0",
  "sdk",
  "sea-orm",
@@ -1308,21 +1306,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "460fbee9c2c2f33933d720630a6a0bac33ba7053db5344fac858d4b8952d77d5"
 
 [[package]]
-name = "crypto"
-version = "0.1.0"
-dependencies = [
- "aes-gcm",
- "argon2",
- "base64ct",
- "bytes",
- "rand 0.8.5",
- "rsa",
- "sha2",
- "thiserror",
- "ulid",
-]
-
-[[package]]
 name = "crypto-bigint"
 version = "0.4.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1488,15 +1471,6 @@ name = "dotenvy"
 version = "0.15.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1aaf95b3e5c8f23aa320147307562d361db0ae0d51242340f558153b4eb2439b"
-
-[[package]]
-name = "dtos"
-version = "0.1.0"
-dependencies = [
- "serde",
- "time",
- "ulid",
-]
 
 [[package]]
 name = "dunce"
@@ -3407,9 +3381,20 @@ dependencies = [
 name = "sdk"
 version = "0.1.0"
 dependencies = [
+ "aes-gcm",
  "anyhow",
+ "argon2",
+ "base64ct",
+ "bytes",
+ "rand 0.8.5",
+ "rsa",
  "serde",
+ "serde_json",
+ "sha2",
  "strum 0.28.0",
+ "thiserror",
+ "time",
+ "ulid",
 ]
 
 [[package]]

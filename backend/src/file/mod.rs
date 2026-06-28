@@ -5,7 +5,10 @@ mod routes;
 pub(crate) use routes::routes;
 use time::OffsetDateTime;
 
+use sdk::media::MediaType;
+
 use crate::entity::sea_orm_active_enums::FileState as EntityFileState;
+use crate::entity::sea_orm_active_enums::MediaType as EntityMediaType;
 use crate::ulid::Id;
 
 #[derive(Debug, Clone)]
@@ -38,6 +41,24 @@ impl From<FileState> for EntityFileState {
     }
 }
 
+impl From<EntityMediaType> for MediaType {
+    fn from(m: EntityMediaType) -> Self {
+        match m {
+            EntityMediaType::Image => MediaType::Image,
+            EntityMediaType::Video => MediaType::Video,
+        }
+    }
+}
+
+impl From<MediaType> for EntityMediaType {
+    fn from(m: MediaType) -> Self {
+        match m {
+            MediaType::Image => EntityMediaType::Image,
+            MediaType::Video => EntityMediaType::Video,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct File {
     pub id: Id,
@@ -51,9 +72,18 @@ pub(crate) struct File {
     pub owner_id: Id,
     pub uploader_id: Id,
     pub enc_key: String,
+    pub media_type: MediaType,
+    pub content_type: String,
+    pub width: u32,
+    pub height: u32,
+    pub duration_ms: Option<u32>,
+    pub segment_size: u32,
+    pub plaintext_size: u64,
+    pub nonce_salt: u32,
+    pub enc_scheme: u8,
 }
 
-impl crypto::CryptoFileDesc for File {
+impl sdk::crypto::CryptoFileDesc for File {
     fn id(&self) -> ulid::Ulid {
         self.id.into()
     }
@@ -76,6 +106,15 @@ impl From<crate::entity::files::Model> for File {
             owner_id: Id::from(m.owner_id),
             uploader_id: Id::from(m.uploader_id),
             enc_key: m.enc_key,
+            media_type: m.media_type.into(),
+            content_type: m.content_type,
+            width: m.width as u32,
+            height: m.height as u32,
+            duration_ms: m.duration_ms.map(|d| d as u32),
+            segment_size: m.segment_size as u32,
+            plaintext_size: m.plaintext_size as u64,
+            nonce_salt: m.nonce_salt as u32,
+            enc_scheme: m.enc_scheme as u8,
         }
     }
 }

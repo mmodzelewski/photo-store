@@ -26,25 +26,25 @@ impl TryFrom<String> for ThumbnailVariant {
 }
 
 impl ThumbnailVariant {
-    fn cover(max_size: u32) -> Self {
+    const fn cover(max_size: u32) -> Self {
         Self {
             max_size,
             mode: ThumbnailMode::Cover,
         }
     }
 
-    fn contain(max_size: u32) -> Self {
+    const fn contain(max_size: u32) -> Self {
         Self {
             max_size,
             mode: ThumbnailMode::Contain,
         }
     }
 
-    pub fn small_cover() -> Self {
+    pub const fn small_cover() -> Self {
         Self::cover(512)
     }
 
-    pub fn big_contain() -> Self {
+    pub const fn big_contain() -> Self {
         Self::contain(1920)
     }
 }

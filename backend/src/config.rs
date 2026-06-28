@@ -33,6 +33,12 @@ fn default_gc_interval_secs() -> u64 {
 fn default_max_concurrent_sessions() -> i64 {
     10
 }
+fn default_min_segment_size() -> u32 {
+    64 * 1024 // 64 KiB
+}
+fn default_max_segment_size() -> u32 {
+    16 * 1024 * 1024 // 16 MiB
+}
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct UploadConfig {
@@ -62,6 +68,20 @@ pub struct UploadConfig {
         default = "default_max_concurrent_sessions"
     )]
     pub max_concurrent_sessions: i64,
+
+    /// Inclusive bounds for the client-declared plaintext segment size,
+    /// validated when file metadata is uploaded.
+    #[serde(
+        rename = "upload_min_segment_size",
+        default = "default_min_segment_size"
+    )]
+    pub min_segment_size: u32,
+
+    #[serde(
+        rename = "upload_max_segment_size",
+        default = "default_max_segment_size"
+    )]
+    pub max_segment_size: u32,
 }
 
 #[derive(Debug, Deserialize, Clone)]

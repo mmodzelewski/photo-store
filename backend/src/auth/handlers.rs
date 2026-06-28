@@ -7,7 +7,7 @@ use axum::{
     Json,
     extract::{Query, State},
 };
-use dtos::auth::{LoginRequest, LoginResponse, PrivateKeyResponse, SaveRsaKeysRequest};
+use sdk::dtos::auth::{LoginRequest, LoginResponse, PrivateKeyResponse, SaveRsaKeysRequest};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error};
 use uuid::Uuid;

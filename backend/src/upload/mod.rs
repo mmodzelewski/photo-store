@@ -19,9 +19,6 @@ pub(crate) const MAX_CHUNK_SIZE: i64 = 100 * 1024 * 1024;
 /// S3 maximum number of parts per multipart upload.
 pub(crate) const MAX_PARTS: i64 = 10_000;
 
-/// Required thumbnail variants for upload completion.
-pub(crate) const REQUIRED_THUMBNAILS: &[&str] = &["512-cover", "1920-contain"];
-
 #[derive(Debug, Clone)]
 pub(crate) struct UploadSession {
     pub file_id: Id,

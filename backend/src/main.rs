@@ -20,6 +20,7 @@ mod error;
 mod file;
 mod migration;
 mod session;
+mod storage;
 mod ulid;
 mod upload;
 

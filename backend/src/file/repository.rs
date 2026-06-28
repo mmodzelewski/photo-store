@@ -93,6 +93,15 @@ impl FileRepository for DbFileRepository {
             owner_id: Set(uuid::Uuid::from(file.owner_id)),
             uploader_id: Set(uuid::Uuid::from(file.uploader_id)),
             enc_key: Set(file.enc_key.clone()),
+            media_type: Set(file.media_type.into()),
+            content_type: Set(file.content_type.clone()),
+            width: Set(file.width as i32),
+            height: Set(file.height as i32),
+            duration_ms: Set(file.duration_ms.map(|d| d as i64)),
+            segment_size: Set(file.segment_size as i32),
+            plaintext_size: Set(file.plaintext_size as i64),
+            nonce_salt: Set(file.nonce_salt as i64),
+            enc_scheme: Set(file.enc_scheme as i16),
         }
         .insert(&self.db)
         .await

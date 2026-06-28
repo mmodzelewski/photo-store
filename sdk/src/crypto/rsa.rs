@@ -3,7 +3,7 @@ use rsa::{
     pkcs8::{DecodePrivateKey, EncodePrivateKey, EncodePublicKey, der::zeroize::Zeroizing},
 };
 
-use crate::error::{Error, Result};
+use super::error::{Error, Result};
 
 pub fn generate_key() -> RsaPrivateKey {
     let mut rng = rand::thread_rng();

@@ -20,3 +20,11 @@ pub enum Provider {
     #[sea_orm(string_value = "credentials")]
     Credentials,
 }
+#[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum)]
+#[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "media_type")]
+pub enum MediaType {
+    #[sea_orm(string_value = "image")]
+    Image,
+    #[sea_orm(string_value = "video")]
+    Video,
+}

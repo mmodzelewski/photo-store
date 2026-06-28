@@ -152,6 +152,16 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
+        // media_type enum
+        manager
+            .create_type(
+                Type::create()
+                    .as_enum(MediaTypeEnum::Type)
+                    .values([MediaTypeEnum::Image, MediaTypeEnum::Video])
+                    .to_owned(),
+            )
+            .await?;
+
         // file table
         manager
             .create_table(
@@ -180,6 +190,19 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(File::OwnerId).uuid().not_null())
                     .col(ColumnDef::new(File::UploaderId).uuid().not_null())
                     .col(ColumnDef::new(File::EncKey).text().not_null())
+                    .col(
+                        ColumnDef::new(File::MediaType)
+                            .custom(MediaTypeEnum::Type)
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(File::ContentType).text().not_null())
+                    .col(ColumnDef::new(File::Width).integer().not_null())
+                    .col(ColumnDef::new(File::Height).integer().not_null())
+                    .col(ColumnDef::new(File::DurationMs).big_integer())
+                    .col(ColumnDef::new(File::SegmentSize).integer().not_null())
+                    .col(ColumnDef::new(File::PlaintextSize).big_integer().not_null())
+                    .col(ColumnDef::new(File::NonceSalt).big_integer().not_null())
+                    .col(ColumnDef::new(File::EncScheme).small_integer().not_null())
                     .foreign_key(
                         ForeignKey::create()
                             .from(File::Table, File::OwnerId)
@@ -318,6 +341,14 @@ enum FileStateEnum {
 }
 
 #[derive(DeriveIden)]
+enum MediaTypeEnum {
+    #[sea_orm(iden = "media_type")]
+    Type,
+    Image,
+    Video,
+}
+
+#[derive(DeriveIden)]
 enum File {
     #[sea_orm(iden = "files")]
     Table,
@@ -331,6 +362,15 @@ enum File {
     OwnerId,
     UploaderId,
     EncKey,
+    MediaType,
+    ContentType,
+    Width,
+    Height,
+    DurationMs,
+    SegmentSize,
+    PlaintextSize,
+    NonceSalt,
+    EncScheme,
 }
 
 #[derive(DeriveIden)]

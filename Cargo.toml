@@ -4,8 +4,6 @@ resolver = "2"
 members = [
     "backend",
     # "clients/native/src-tauri",
-    "crates/crypto",
-    "crates/dtos",
     "sdk",
 ]
 

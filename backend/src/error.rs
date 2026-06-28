@@ -9,8 +9,6 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     #[error("File upload error")]
     FileUpload,
-    #[error("File download error")]
-    FileDownload,
     #[error("Storage error")]
     Storage,
     #[error("File not found")]
@@ -28,7 +26,7 @@ pub enum Error {
     #[error("Configuration error")]
     Configuration,
     #[error("Crypto error")]
-    Crypto(#[from] crypto::error::Error),
+    Crypto(#[from] sdk::crypto::error::Error),
     #[error("Upload session not found")]
     UploadNotFound,
     #[error("Upload conflict")]
@@ -47,9 +45,7 @@ impl IntoResponse for Error {
             Error::Auth(_) => (StatusCode::UNAUTHORIZED, "Unauthorized"),
             Error::Forbidden => (StatusCode::FORBIDDEN, "Forbidden"),
             Error::FileNotFound | Error::UploadNotFound => (StatusCode::NOT_FOUND, "Not found"),
-            Error::FileUpload | Error::FileDownload | Error::UploadIncomplete => {
-                (StatusCode::BAD_REQUEST, "Bad request")
-            }
+            Error::FileUpload | Error::UploadIncomplete => (StatusCode::BAD_REQUEST, "Bad request"),
             Error::UploadConflict => (StatusCode::CONFLICT, "Conflict"),
             Error::UploadExpired => (StatusCode::GONE, "Gone"),
             Error::TooManyRequests => (StatusCode::TOO_MANY_REQUESTS, "Too many requests"),

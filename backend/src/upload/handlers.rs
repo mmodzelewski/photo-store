@@ -14,11 +14,14 @@ use crate::file::{File, FileState};
 use crate::session::Session;
 use crate::ulid::Id;
 
+use sdk::media::required_variants;
+
+use crate::storage::{presign_put_object, presigning_config, s3_original_key, s3_thumbnail_key};
+
 use super::repository::{DbUploadRepository, UploadRepository};
 use super::{
     ChunkUrl, CompleteUploadRequest, CompleteUploadResponse, InitUploadRequest, InitUploadResponse,
-    MAX_CHUNK_SIZE, MAX_PARTS, MIN_CHUNK_SIZE, REQUIRED_THUMBNAILS, ThumbnailUrl, UploadSession,
-    UploadStatusResponse,
+    MAX_CHUNK_SIZE, MAX_PARTS, MIN_CHUNK_SIZE, ThumbnailUrl, UploadSession, UploadStatusResponse,
 };
 
 pub(super) async fn init_upload(
@@ -164,7 +167,7 @@ pub(super) async fn upload_status(
         list_s3_parts(&state.s3_client, bucket, &s3_key, &session.upload_id).await?;
     let received_set: HashSet<i32> = received_parts.iter().copied().collect();
 
-    let presigning = presigning_config(&state)?;
+    let presigning = presigning_config(state.config.upload.presigned_url_ttl_secs)?;
     let mut missing = Vec::new();
     for part_number in 1..=session.total_chunks {
         if !received_set.contains(&part_number) {
@@ -478,24 +481,6 @@ fn validate_complete_request(
     Ok(())
 }
 
-fn s3_original_key(file: &File) -> String {
-    format!("files/{}/{}/original", file.owner_id, file.id)
-}
-
-fn s3_thumbnail_key(file: &File, variant: &str) -> String {
-    format!("files/{}/{}/{}", file.owner_id, file.id, variant)
-}
-
-fn presigning_config(state: &AppState) -> Result<PresigningConfig> {
-    PresigningConfig::expires_in(std::time::Duration::from_secs(
-        state.config.upload.presigned_url_ttl_secs,
-    ))
-    .map_err(|e| {
-        error!(error = %e, "Invalid presigning configuration");
-        Error::Storage
-    })
-}
-
 async fn presign_upload_part(
     client: &aws_sdk_s3::Client,
     bucket: &str,
@@ -520,26 +505,6 @@ async fn presign_upload_part(
     Ok(presigned.uri().to_string())
 }
 
-async fn presign_put_object(
-    client: &aws_sdk_s3::Client,
-    bucket: &str,
-    key: &str,
-    config: &PresigningConfig,
-) -> Result<String> {
-    let presigned = client
-        .put_object()
-        .bucket(bucket)
-        .key(key)
-        .presigned(config.clone())
-        .await
-        .map_err(|e| {
-            error!(key, error = %e, "Failed to presign PutObject");
-            Error::Storage
-        })?;
-
-    Ok(presigned.uri().to_string())
-}
-
 async fn build_init_response(
     state: &AppState,
     file: &File,
@@ -547,7 +512,7 @@ async fn build_init_response(
 ) -> Result<InitUploadResponse> {
     let bucket = &state.config.storage.bucket_name;
     let s3_key = s3_original_key(file);
-    let presigning = presigning_config(state)?;
+    let presigning = presigning_config(state.config.upload.presigned_url_ttl_secs)?;
 
     let mut chunk_urls = Vec::with_capacity(session.total_chunks as usize);
     for part_number in 1..=session.total_chunks {
@@ -563,14 +528,13 @@ async fn build_init_response(
         chunk_urls.push(ChunkUrl { part_number, url });
     }
 
-    let mut thumbnail_urls = Vec::with_capacity(REQUIRED_THUMBNAILS.len());
-    for variant in REQUIRED_THUMBNAILS {
-        let key = s3_thumbnail_key(file, variant);
+    let variants = required_variants(file.media_type);
+    let mut thumbnail_urls = Vec::with_capacity(variants.len());
+    for variant in variants {
+        let variant = variant.to_string();
+        let key = s3_thumbnail_key(file, &variant);
         let url = presign_put_object(&state.s3_client, bucket, &key, &presigning).await?;
-        thumbnail_urls.push(ThumbnailUrl {
-            variant: variant.to_string(),
-            url,
-        });
+        thumbnail_urls.push(ThumbnailUrl { variant, url });
     }
 
     Ok(InitUploadResponse {
@@ -645,10 +609,11 @@ async fn find_missing_thumbnails(state: &AppState, file: &File) -> Result<Vec<St
     let bucket = &state.config.storage.bucket_name;
     let mut missing = Vec::new();
 
-    for variant in REQUIRED_THUMBNAILS {
-        let key = s3_thumbnail_key(file, variant);
+    for variant in required_variants(file.media_type) {
+        let variant = variant.to_string();
+        let key = s3_thumbnail_key(file, &variant);
         if !head_object_exists(&state.s3_client, bucket, &key).await? {
-            missing.push(variant.to_string());
+            missing.push(variant);
         }
     }
 
@@ -664,16 +629,14 @@ async fn check_thumbnails(
     let mut received = Vec::new();
     let mut missing = Vec::new();
 
-    for variant in REQUIRED_THUMBNAILS {
-        let key = s3_thumbnail_key(file, variant);
+    for variant in required_variants(file.media_type) {
+        let variant = variant.to_string();
+        let key = s3_thumbnail_key(file, &variant);
         if head_object_exists(&state.s3_client, bucket, &key).await? {
-            received.push(variant.to_string());
+            received.push(variant);
         } else {
             let url = presign_put_object(&state.s3_client, bucket, &key, presigning).await?;
-            missing.push(ThumbnailUrl {
-                variant: variant.to_string(),
-                url,
-            });
+            missing.push(ThumbnailUrl { variant, url });
         }
     }
 
@@ -712,8 +675,9 @@ async fn cleanup_s3_upload(state: &AppState, file: &File, session: &UploadSessio
         );
     }
 
-    for variant in REQUIRED_THUMBNAILS {
-        let key = s3_thumbnail_key(file, variant);
+    for variant in required_variants(file.media_type) {
+        let variant = variant.to_string();
+        let key = s3_thumbnail_key(file, &variant);
         if let Err(e) = state
             .s3_client
             .delete_object()
@@ -724,7 +688,7 @@ async fn cleanup_s3_upload(state: &AppState, file: &File, session: &UploadSessio
         {
             warn!(
                 file_id = %file.id,
-                variant,
+                variant = %variant,
                 error = %e,
                 "Failed to delete thumbnail during cleanup"
             );
@@ -762,6 +726,15 @@ mod tests {
             owner_id,
             uploader_id,
             enc_key: "key".to_string(),
+            media_type: sdk::media::MediaType::Image,
+            content_type: "image/jpeg".to_string(),
+            width: 640,
+            height: 480,
+            duration_ms: None,
+            segment_size: sdk::segment::DEFAULT_SEGMENT_SIZE,
+            plaintext_size: 1024,
+            nonce_salt: 0,
+            enc_scheme: sdk::crypto::ENC_SCHEME_SEGMENTED,
         }
     }
 

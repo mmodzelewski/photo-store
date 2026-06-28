@@ -10,8 +10,6 @@ aws-config = "1.8.14"
 aws-sdk-s3 = "1.124.0"
 axum = { version = "0.8.8", features = ["multipart"] }
 config = "0.15.19"
-crypto = { version = "0.1.0", path = "../crates/crypto" }
-dtos = { version = "0.1.0", path = "../crates/dtos" }
 http = "1.4.0"
 sdk = { version = "0.1.0", path = "../sdk" }
 sea-orm = { version = "~2.0.0-rc", features = ["sqlx-postgres", "runtime-tokio-rustls", "macros"] }

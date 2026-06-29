@@ -6,7 +6,7 @@ use rsa::{
 use super::error::{Error, Result};
 
 pub fn generate_key() -> RsaPrivateKey {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let bits = 2048;
     RsaPrivateKey::new(&mut rng, bits).expect("failed to generate a key")

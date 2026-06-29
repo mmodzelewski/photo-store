@@ -2,11 +2,13 @@ use ::rsa::{Oaep, RsaPublicKey};
 use aes_gcm::Nonce;
 use aes_gcm::aead::Payload;
 use aes_gcm::aead::consts::U12;
-use aes_gcm::{Aes256Gcm, Key, KeyInit, aead::Aead};
+use aes_gcm::{
+    Aes256Gcm, Key, KeyInit,
+    aead::{Aead, Generate},
+};
 use argon2::Argon2;
 use base64ct::{Base64, Encoding};
 use bytes::Bytes;
-use rand::rngs::OsRng;
 use sha2::{Digest, Sha256};
 use ulid::Ulid;
 
@@ -115,14 +117,14 @@ pub fn decode_encryption_key(
 }
 
 pub fn generate_encoded_encryption_key(public_key: &RsaPublicKey) -> String {
-    let key: Key<Aes256Gcm> = Aes256Gcm::generate_key(OsRng);
+    let key: Key<Aes256Gcm> = Key::<Aes256Gcm>::generate();
     let encrypted_key = encrypt(&key, public_key);
     Base64::encode_string(&encrypted_key)
 }
 
 pub fn encrypt(data: &[u8], public_key: &RsaPublicKey) -> Vec<u8> {
-    let mut rng = rand::thread_rng();
-    let padding = Oaep::new::<Sha256>();
+    let mut rng = rand::rng();
+    let padding = Oaep::<Sha256>::new();
     public_key
         .encrypt(&mut rng, padding, data)
         .expect("failed to encrypt")
@@ -194,7 +196,7 @@ mod tests {
     }
 
     fn key() -> Key<Aes256Gcm> {
-        Aes256Gcm::generate_key(OsRng)
+        Key::<Aes256Gcm>::generate()
     }
 
     const SCHEME: u8 = ENC_SCHEME_SEGMENTED;
